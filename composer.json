@@ -1,73 +1,65 @@
 {
-    "type": "project",
-    "license": "proprietary",
+    "name": "cristianradulescu/staccato-bundle",
+    "description": "Symfony bundle that turns Markdown content into a static site.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "homepage": "https://github.com/cristianradulescu/staccato-bundle",
+    "support": {
+        "issues": "https://github.com/cristianradulescu/staccato-bundle/issues",
+        "source": "https://github.com/cristianradulescu/staccato-bundle"
+    },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
         "php": ">=8.4",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "fakerphp/faker": "^1.24",
         "league/commonmark": "^2.8",
-        "symfony/console": "8.0.*",
-        "symfony/dotenv": "8.0.*",
-        "symfony/filesystem": "8.0.*",
-        "symfony/finder": "8.0.*",
-        "symfony/flex": "^2",
-        "symfony/framework-bundle": "8.0.*",
-        "symfony/runtime": "8.0.*",
-        "symfony/twig-bundle": "8.0.*",
-        "symfony/yaml": "8.0.*"
+        "symfony/config": "8.1.*",
+        "symfony/console": "8.1.*",
+        "symfony/dependency-injection": "8.1.*",
+        "symfony/filesystem": "8.1.*",
+        "symfony/finder": "8.1.*",
+        "symfony/http-kernel": "8.1.*",
+        "symfony/yaml": "8.1.*",
+        "twig/twig": "^3.14"
     },
     "config": {
         "allow-plugins": {
-            "php-http/discovery": true,
-            "symfony/flex": true,
-            "symfony/runtime": true
+            "php-http/discovery": true
         },
-        "bump-after-update": true,
         "sort-packages": true
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/"
+            "Staccato\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "App\\Tests\\": "tests/"
+            "Staccato\\Tests\\": "tests/"
         }
     },
-    "replace": {
-        "symfony/polyfill-ctype": "*",
-        "symfony/polyfill-iconv": "*",
-        "symfony/polyfill-php72": "*",
-        "symfony/polyfill-php73": "*",
-        "symfony/polyfill-php74": "*",
-        "symfony/polyfill-php80": "*",
-        "symfony/polyfill-php81": "*",
-        "symfony/polyfill-php82": "*",
-        "symfony/polyfill-php83": "*",
-        "symfony/polyfill-php84": "*"
-    },
     "scripts": {
-        "auto-scripts": {
-            "cache:clear": "symfony-cmd",
-            "assets:install %PUBLIC_DIR%": "symfony-cmd"
-        },
-        "post-install-cmd": [
-            "@auto-scripts"
-        ],
-        "post-update-cmd": [
-            "@auto-scripts"
+        "cs:check": "php-cs-fixer fix --dry-run --diff",
+        "cs:fix": "php-cs-fixer fix",
+        "stan": "phpstan analyse --memory-limit=1G",
+        "test": "phpunit",
+        "qa": [
+            "@cs:check",
+            "@stan",
+            "@test"
         ]
     },
     "conflict": {
         "symfony/symfony": "*"
     },
-    "extra": {
-        "symfony": {
-            "allow-contrib": false,
-            "require": "8.0.*"
-        }
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^13.1",
+        "symfony/framework-bundle": "8.1.*",
+        "symfony/twig-bundle": "8.1.*"
     }
 }
