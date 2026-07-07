@@ -17,6 +17,8 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
         private string $projectDir,
+        #[Autowire('%staccato.default_assets_dir%')]
+        private string $defaultAssetsDir,
         private Filesystem $filesystem,
         private SiteConfig $siteConfig,
         private ContentLoader $contentLoader,
@@ -70,14 +72,14 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $detailOutputPaths = $this->assertNoDuplicateOutputPaths($detailPages, $buildDirectory);
 
         foreach ($detailPages as $page) {
-            $html = $this->pageRenderer->renderPage($page, $siteConfig->title, $siteConfig->footerText);
+            $html = $this->pageRenderer->renderPage($page, $siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles);
             $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($page->urlPath, $buildDirectory);
             $absoluteOutputPath = $this->projectDir.'/'.$relativeOutputPath;
             $this->filesystem->mkdir(dirname($absoluteOutputPath));
             $this->filesystem->dumpFile($absoluteOutputPath, $html);
         }
 
-        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $detailOutputPaths);
+        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $siteConfig->includeDefaultStyles, $detailOutputPaths);
         $articlePages = $this->sortedArticlePages($detailPages);
 
         $rssXml = $this->pageRenderer->renderRss(
@@ -90,7 +92,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         $this->filesystem->dumpFile(
             $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/404.html',
-            $this->pageRenderer->renderNotFound($siteConfig->title, $siteConfig->footerText),
+            $this->pageRenderer->renderNotFound($siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles),
         );
 
         $sitemapUrls = array_values(array_unique(array_merge(
@@ -106,6 +108,12 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $this->filesystem->dumpFile($this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/sitemap.xml', $sitemapXml);
 
         $assetsCopied = $this->copyAssets($assetsDirectory, $buildDirectory);
+
+        if ($siteConfig->includeDefaultStyles) {
+            $this->copyDefaultStyles($buildDirectory);
+            $assetsCopied = true;
+        }
+
         $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
 
         return new SiteBuildResult(
@@ -144,23 +152,27 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $sourceAssetsPath = $this->projectDir.'/'.$normalizedAssetsDirectory;
         $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
 
-        $assetsCopied = false;
-
-        if (is_dir($sourceAssetsPath)) {
-            $targetAssetsPath = $targetBuildDirectory.'/'.$normalizedAssetsDirectory;
-            $this->filesystem->mirror($sourceAssetsPath, $targetAssetsPath);
-            $assetsCopied = true;
+        if (!is_dir($sourceAssetsPath)) {
+            return false;
         }
 
-        $compiledCssPath = $this->projectDir.'/assets/app.css';
+        $targetAssetsPath = $targetBuildDirectory.'/'.$normalizedAssetsDirectory;
+        $this->filesystem->mirror($sourceAssetsPath, $targetAssetsPath);
 
-        if (is_file($compiledCssPath)) {
-            $this->filesystem->mkdir($targetBuildDirectory.'/assets');
-            $this->filesystem->copy($compiledCssPath, $targetBuildDirectory.'/assets/app.css', true);
-            $assetsCopied = true;
+        return true;
+    }
+
+    private function copyDefaultStyles(string $buildDirectory): void
+    {
+        $sourceStylesheetPath = $this->defaultAssetsDir.'/css/staccato.css';
+
+        if (!is_file($sourceStylesheetPath)) {
+            return;
         }
 
-        return $assetsCopied;
+        $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
+        $this->filesystem->mkdir($targetBuildDirectory.'/assets/staccato');
+        $this->filesystem->copy($sourceStylesheetPath, $targetBuildDirectory.'/assets/staccato/staccato.css', true);
     }
 
     /**
@@ -169,7 +181,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
      *
      * @return list<string>
      */
-    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, array $existingOutputPaths): array
+    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, bool $includeDefaultStyles, array $existingOutputPaths): array
     {
         $articles = $this->sortedArticlePages($pages);
 
@@ -205,7 +217,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
                 nextPageUrl: $pageNumber < $totalPages ? '/page/'.($pageNumber + 1).'/' : null,
             );
 
-            $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText);
+            $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText, $includeDefaultStyles);
             $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($urlPath, $buildDirectory);
 
             if (isset($existingOutputPaths[$relativeOutputPath])) {

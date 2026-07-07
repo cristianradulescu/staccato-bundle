@@ -1,0 +1,15 @@
+{% extends '@Staccato/base.html.twig' %}
+
+{% block title %}{{ page.title }} · {{ siteTitle }}{% endblock %}
+
+{% block content %}
+    <article class="page">
+        <h1 class="page-title">{{ page.title }}</h1>
+        {% if page.publishedAt %}
+            <p class="page-meta">{{ page.publishedAt|date('F j, Y') }}</p>
+        {% endif %}
+        <div class="prose">
+            {{ page.html|raw }}
+        </div>
+    </article>
+{% endblock %}

@@ -19,17 +19,26 @@ use Twig\Loader\ArrayLoader;
 final class SiteBuilderTest extends TestCase
 {
     private string $projectDir;
+    private string $defaultAssetsDir;
 
     protected function setUp(): void
     {
         $this->projectDir = rtrim(sys_get_temp_dir(), '/').'/staccato-site-builder-'.bin2hex(random_bytes(8));
         mkdir($this->projectDir, 0777, true);
+
+        $this->defaultAssetsDir = rtrim(sys_get_temp_dir(), '/').'/staccato-default-assets-'.bin2hex(random_bytes(8));
+        mkdir($this->defaultAssetsDir.'/css', 0777, true);
+        file_put_contents($this->defaultAssetsDir.'/css/staccato.css', 'body { margin: 0; }');
     }
 
     protected function tearDown(): void
     {
         if (is_dir($this->projectDir)) {
             $this->removeDirectory($this->projectDir);
+        }
+
+        if (is_dir($this->defaultAssetsDir)) {
+            $this->removeDirectory($this->defaultAssetsDir);
         }
     }
 
@@ -97,6 +106,31 @@ final class SiteBuilderTest extends TestCase
 
         self::assertTrue($result->assetsCopied);
         self::assertFileExists($this->projectDir.'/build/assets/images/logo.txt');
+    }
+
+    #[Test]
+    public function itCopiesDefaultStylesByDefault(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+
+        $builder = $this->createBuilder();
+        $result = $builder->build();
+
+        self::assertTrue($result->assetsCopied);
+        self::assertFileExists($this->projectDir.'/build/assets/staccato/staccato.css');
+    }
+
+    #[Test]
+    public function itSkipsDefaultStylesWhenDisabled(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+
+        $builder = $this->createBuilder(includeDefaultStyles: false);
+        $builder->build();
+
+        self::assertFileDoesNotExist($this->projectDir.'/build/assets/staccato/staccato.css');
     }
 
     #[Test]
@@ -182,7 +216,7 @@ final class SiteBuilderTest extends TestCase
         self::assertFileExists($this->projectDir.'/build/404.html');
     }
 
-    private function createBuilder(): SiteBuilder
+    private function createBuilder(bool $includeDefaultStyles = true): SiteBuilder
     {
         $resolver = new OutputPathResolver();
         $loader = new ContentLoader($this->projectDir, $resolver);
@@ -193,18 +227,19 @@ final class SiteBuilderTest extends TestCase
             description: 'Test site description',
             articlesPerPage: 10,
             footerText: 'Built with Staccato',
+            includeDefaultStyles: $includeDefaultStyles,
         );
         $twig = new Environment(new ArrayLoader([
-            'page.html.twig' => '<html><body><h1>{{ page.title }}</h1>{{ page.html|raw }}</body></html>',
-            'home.html.twig' => '<html><body>{% for article in home.articles %}<a href="{{ article.urlPath }}">Read more -&gt;</a>{% endfor %}{% if home.totalPages > 1 %}page {{ home.currentPage }} of {{ home.totalPages }}{% endif %}</body></html>',
-            'rss.xml.twig' => '<rss version="2.0">{% for article in articles %}<item><title>{{ article.title }}</title></item>{% endfor %}</rss>',
-            'sitemap.xml.twig' => '<urlset>{% for path in urls %}<url><loc>{{ baseUrl }}{{ path }}</loc></url>{% endfor %}</urlset>',
-            '404.html.twig' => '<html><body>404</body></html>',
+            '@Staccato/page.html.twig' => '<html><body><h1>{{ page.title }}</h1>{{ page.html|raw }}</body></html>',
+            '@Staccato/home.html.twig' => '<html><body>{% for article in home.articles %}<a href="{{ article.urlPath }}">Read more -&gt;</a>{% endfor %}{% if home.totalPages > 1 %}page {{ home.currentPage }} of {{ home.totalPages }}{% endif %}</body></html>',
+            '@Staccato/rss.xml.twig' => '<rss version="2.0">{% for article in articles %}<item><title>{{ article.title }}</title></item>{% endfor %}</rss>',
+            '@Staccato/sitemap.xml.twig' => '<urlset>{% for path in urls %}<url><loc>{{ baseUrl }}{{ path }}</loc></url>{% endfor %}</urlset>',
+            '@Staccato/404.html.twig' => '<html><body>404</body></html>',
         ]));
         $renderer = new PageRenderer($twig);
         $fixtureGenerator = new FixtureContentGenerator($this->projectDir, $filesystem);
 
-        return new SiteBuilder($this->projectDir, $filesystem, $siteConfig, $loader, $fixtureGenerator, $resolver, $renderer);
+        return new SiteBuilder($this->projectDir, $this->defaultAssetsDir, $filesystem, $siteConfig, $loader, $fixtureGenerator, $resolver, $renderer);
     }
 
     private function removeDirectory(string $path): void

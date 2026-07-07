@@ -1,0 +1,32 @@
+{% extends '@Staccato/base.html.twig' %}
+
+{% block content %}
+    <div class="article-list">
+        {% for article in home.articles %}
+            <article class="article-card">
+                {% if article.publishedAt %}
+                    <p class="article-meta">{{ article.publishedAt|date('F j, Y') }}</p>
+                {% endif %}
+                <h2 class="article-title"><a href="{{ article.urlPath }}">{{ article.title }}</a></h2>
+                {% if article.excerpt %}
+                    <p class="article-excerpt">{{ article.excerpt }}</p>
+                {% endif %}
+                <a class="article-link" href="{{ article.urlPath }}">Read more &rarr;</a>
+            </article>
+        {% else %}
+            <p class="empty-state">No articles yet.</p>
+        {% endfor %}
+    </div>
+
+    {% if home.totalPages > 1 %}
+        <nav class="pagination" aria-label="Pagination">
+            {% if home.previousPageUrl %}
+                <a class="pagination-link" href="{{ home.previousPageUrl }}">&larr; Newer</a>
+            {% endif %}
+            <span class="pagination-status">Page {{ home.currentPage }} of {{ home.totalPages }}</span>
+            {% if home.nextPageUrl %}
+                <a class="pagination-link" href="{{ home.nextPageUrl }}">Older &rarr;</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+{% endblock %}

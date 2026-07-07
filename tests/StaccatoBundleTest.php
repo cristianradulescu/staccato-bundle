@@ -31,6 +31,7 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame('Static site generated with Staccato.', $siteConfig->description);
         self::assertSame(10, $siteConfig->articlesPerPage);
         self::assertSame('Built with Staccato', $siteConfig->footerText);
+        self::assertTrue($siteConfig->includeDefaultStyles);
 
         $kernel->shutdown();
     }
@@ -44,6 +45,7 @@ final class StaccatoBundleTest extends TestCase
             'description' => 'Example description',
             'articles_per_page' => 12,
             'footer_text' => 'Built with dev-notes',
+            'include_default_styles' => false,
         ]);
         $kernel->boot();
 
@@ -54,6 +56,7 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame('Example description', $siteConfig->description);
         self::assertSame(12, $siteConfig->articlesPerPage);
         self::assertSame('Built with dev-notes', $siteConfig->footerText);
+        self::assertFalse($siteConfig->includeDefaultStyles);
 
         $kernel->shutdown();
     }

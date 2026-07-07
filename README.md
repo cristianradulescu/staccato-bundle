@@ -2,12 +2,12 @@
 
 Staccato is a Symfony bundle that turns Markdown content into a static site: pages, a paginated homepage, an RSS feed, and a sitemap, all rendered with Twig.
 
-This repository is the **engine** — a reusable `cristianradulescu/staccato-bundle` package. It has no content, templates, or assets of its own; it is meant to be required into a Symfony application (or a dedicated Staccato project skeleton, once published) that supplies those.
+This repository is the **engine** — a reusable `cristianradulescu/staccato-bundle` package. It ships default templates and styling so you can focus on writing content instead of building a layout; it is meant to be required into a Symfony application (or a dedicated Staccato project skeleton, once published) that supplies content.
 
 ## Requirements
 
 - PHP 8.4+
-- A Symfony 8 application to install the bundle into
+- A Symfony 8 application to install the bundle into (with `symfony/twig-bundle`, so the bundle's default templates are discovered and overridable — see "Customizing templates" below)
 
 ## Installation (into a consuming Symfony app)
 
@@ -36,11 +36,13 @@ staccato:
     footer_text: Built with Staccato
 ```
 
-The consuming application is responsible for providing:
+The consuming application only needs to provide:
 
 - `content/` — Markdown source files
-- `templates/page.html.twig`, `home.html.twig`, `404.html.twig`, `rss.xml.twig`, `sitemap.xml.twig` — rendered via the app's own Twig environment
-- `assets/` — static files copied as-is into the build output
+
+Everything else — layout, homepage pagination, 404 page, RSS/sitemap markup, and a default stylesheet — is shipped by the bundle and works out of the box. Optionally, the consuming app can also provide:
+
+- `assets/` — static files copied as-is into the build output (images, extra scripts, etc.)
 
 Then build the site with the bundle's console command:
 
@@ -59,6 +61,23 @@ All keys are optional and live under the `staccato` root key:
 | `description` | string | `Static site generated with Staccato.` |
 | `articles_per_page` | positive integer | `10` |
 | `footer_text` | string | `Built with Staccato` |
+| `include_default_styles` | boolean | `true` |
+
+## Customizing templates
+
+Staccato ships default templates under the `@Staccato` Twig namespace: `base.html.twig`, `page.html.twig`, `home.html.twig`, `404.html.twig`, `rss.xml.twig`, `sitemap.xml.twig`.
+
+To override any single one of them, place a file at the matching path in your own app — Symfony's standard bundle template override convention:
+
+```
+templates/bundles/StaccatoBundle/page.html.twig
+```
+
+This file takes priority over the bundle's own `page.html.twig`, while every other default template keeps working unchanged. Override `base.html.twig` to change the overall layout, or override individual page templates to change just their content structure.
+
+## Default styling
+
+The bundle ships a small, dependency-free stylesheet (no Node/Tailwind build step) and copies it into `build/assets/staccato/staccato.css` on every build, referenced automatically by the default `base.html.twig`. Set `include_default_styles: false` in your `staccato` config to opt out — the stylesheet is then neither copied nor linked, and you can supply your own via an overridden `base.html.twig` plus your own `assets/`.
 
 ## Writing content
 
@@ -100,7 +119,7 @@ Directory-style URLs are used:
 - `/about/` -> `build/about/index.html`
 - `/docs/getting-started/` -> `build/docs/getting-started/index.html`
 
-Assets are mirrored from `assets/` to `build/assets/`. Special generated files: `build/404.html`, `build/rss.xml`, `build/sitemap.xml`.
+Assets are mirrored from `assets/` to `build/assets/`. The default stylesheet (unless disabled) is copied to `build/assets/staccato/staccato.css`. Special generated files: `build/404.html`, `build/rss.xml`, `build/sitemap.xml`.
 
 ## Homepage and pagination
 

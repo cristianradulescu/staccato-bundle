@@ -15,28 +15,30 @@ final readonly class PageRenderer
     ) {
     }
 
-    public function renderPage(Page $page, string $siteTitle, string $footerText, string $template = 'page.html.twig'): string
+    public function renderPage(Page $page, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, string $template = '@Staccato/page.html.twig'): string
     {
         return $this->twig->render($template, [
             'page' => $page,
             'siteTitle' => $siteTitle,
             'footerText' => $footerText,
+            'includeDefaultStyles' => $includeDefaultStyles,
         ]);
     }
 
-    public function renderHome(PaginatedHomeContext $home, string $siteTitle, string $footerText, string $template = 'home.html.twig'): string
+    public function renderHome(PaginatedHomeContext $home, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, string $template = '@Staccato/home.html.twig'): string
     {
         return $this->twig->render($template, [
             'home' => $home,
             'siteTitle' => $siteTitle,
             'footerText' => $footerText,
+            'includeDefaultStyles' => $includeDefaultStyles,
         ]);
     }
 
     /**
      * @param list<Page> $articles
      */
-    public function renderRss(array $articles, string $siteTitle, string $siteDescription, string $baseUrl, string $template = 'rss.xml.twig'): string
+    public function renderRss(array $articles, string $siteTitle, string $siteDescription, string $baseUrl, string $template = '@Staccato/rss.xml.twig'): string
     {
         return $this->twig->render($template, [
             'articles' => $articles,
@@ -50,7 +52,7 @@ final readonly class PageRenderer
     /**
      * @param list<string> $urls
      */
-    public function renderSitemap(array $urls, string $baseUrl, string $template = 'sitemap.xml.twig'): string
+    public function renderSitemap(array $urls, string $baseUrl, string $template = '@Staccato/sitemap.xml.twig'): string
     {
         return $this->twig->render($template, [
             'urls' => $urls,
@@ -58,11 +60,12 @@ final readonly class PageRenderer
         ]);
     }
 
-    public function renderNotFound(string $siteTitle, string $footerText, string $template = '404.html.twig'): string
+    public function renderNotFound(string $siteTitle, string $footerText, bool $includeDefaultStyles = true, string $template = '@Staccato/404.html.twig'): string
     {
         return $this->twig->render($template, [
             'siteTitle' => $siteTitle,
             'footerText' => $footerText,
+            'includeDefaultStyles' => $includeDefaultStyles,
         ]);
     }
 }

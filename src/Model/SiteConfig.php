@@ -12,6 +12,7 @@ final readonly class SiteConfig
         public string $description,
         public int $articlesPerPage,
         public string $footerText,
+        public bool $includeDefaultStyles,
     ) {
     }
 }

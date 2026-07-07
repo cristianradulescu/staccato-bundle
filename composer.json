@@ -31,6 +31,9 @@
         },
         "sort-packages": true
     },
+    "suggest": {
+        "symfony/twig-bundle": "Required to render Staccato's default templates and to allow per-template overrides in your app."
+    },
     "autoload": {
         "psr-4": {
             "Staccato\\": "src/"

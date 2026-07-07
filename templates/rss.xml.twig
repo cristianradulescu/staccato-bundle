@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+        <title>{{ siteTitle }}</title>
+        <link>{{ baseUrl }}/</link>
+        <description>{{ siteDescription }}</description>
+        <lastBuildDate>{{ generatedAt|date('r') }}</lastBuildDate>
+        {% for article in articles %}
+        <item>
+            <title>{{ article.title }}</title>
+            <link>{{ baseUrl }}{{ article.urlPath }}</link>
+            <guid>{{ baseUrl }}{{ article.urlPath }}</guid>
+            {% if article.publishedAt %}
+            <pubDate>{{ article.publishedAt|date('r') }}</pubDate>
+            {% endif %}
+            {% if article.excerpt %}
+            <description>{{ article.excerpt }}</description>
+            {% endif %}
+        </item>
+        {% endfor %}
+    </channel>
+</rss>

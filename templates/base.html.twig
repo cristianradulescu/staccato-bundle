@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ siteTitle }}{% endblock %}</title>
+    {% if includeDefaultStyles %}
+    <link rel="stylesheet" href="/assets/staccato/staccato.css">
+    {% endif %}
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-container">
+            <a class="site-title" href="/">{{ siteTitle }}</a>
+        </div>
+    </header>
+
+    <main class="site-main">
+        <div class="site-container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-container">
+            <p>{{ footerText }}</p>
+        </div>
+    </footer>
+</body>
+</html>

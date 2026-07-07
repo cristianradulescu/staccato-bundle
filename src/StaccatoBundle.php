@@ -40,6 +40,9 @@ final class StaccatoBundle extends AbstractBundle
                     ->cannotBeEmpty()
                     ->defaultValue('Built with Staccato')
                 ->end()
+                ->booleanNode('include_default_styles')
+                    ->defaultTrue()
+                ->end()
             ->end();
     }
 
@@ -50,6 +53,8 @@ final class StaccatoBundle extends AbstractBundle
     {
         $container->import('../config/services.yaml');
 
+        $builder->setParameter('staccato.default_assets_dir', $this->getPath().'/public');
+
         $builder->register(SiteConfig::class)
             ->setArguments([
                 trim((string) $config['title']),
@@ -57,6 +62,7 @@ final class StaccatoBundle extends AbstractBundle
                 trim((string) $config['description']),
                 (int) $config['articles_per_page'],
                 trim((string) $config['footer_text']),
+                (bool) $config['include_default_styles'],
             ]);
     }
 }
