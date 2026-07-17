@@ -99,6 +99,38 @@ a:hover {
     padding: 0;
 }
 
+.prose table {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    width: 100%;
+}
+
+.prose table caption {
+    caption-side: top;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.prose th,
+.prose td {
+    border: 1px solid var(--staccato-border);
+    padding: 0.5rem 0.75rem;
+}
+
+.prose th {
+    font-weight: 600;
+    text-align: left;
+}
+
+.prose tr:nth-child(2n) {
+    background: var(--staccato-header-bg);
+}
+
+.prose tr:nth-child(2n) th,
+.prose tr:nth-child(2n) td {
+    background: none;
+}
+
 .article-list {
     display: flex;
     flex-direction: column;

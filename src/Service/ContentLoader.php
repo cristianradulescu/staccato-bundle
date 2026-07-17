@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Staccato\Service;
 
-use League\CommonMark\CommonMarkConverter;
 use Staccato\Model\Page;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
+use Tempest\Highlight\Highlighter;
+use Tempest\Markdown\Markdown;
 
 final class ContentLoader
 {
@@ -25,12 +26,12 @@ final class ContentLoader
         private readonly string $projectDir,
         private readonly OutputPathResolver $outputPathResolver,
     ) {
-        $markdownConverter = new CommonMarkConverter([
-            'html_input' => 'strip',
-            'allow_unsafe_links' => false,
-        ]);
+        $markdownConverter = new Markdown(
+            highlighter: new Highlighter()
+        );
 
-        $this->markdownToHtml = static fn (string $markdown): string => (string) $markdownConverter->convert($markdown);
+        $this->markdownToHtml = static fn (string $markdown): string => (string) $markdownConverter->parse($markdown);
+
     }
 
     /**

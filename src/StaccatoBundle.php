@@ -43,6 +43,13 @@ final class StaccatoBundle extends AbstractBundle
                 ->booleanNode('include_default_styles')
                     ->defaultTrue()
                 ->end()
+                ->arrayNode('extra_default_styles')
+                     ->prototype('scalar')->end()
+                     ->defaultValue([])
+                ->end()
+                ->scalarNode('highlighter_css')
+                     ->defaultValue(null)
+                ->end()
             ->end();
     }
 
@@ -63,6 +70,8 @@ final class StaccatoBundle extends AbstractBundle
                 (int) $config['articles_per_page'],
                 trim((string) $config['footer_text']),
                 (bool) $config['include_default_styles'],
+                (array) $config['extra_default_styles'],
+                $config['highlighter_css'],
             ]);
     }
 }

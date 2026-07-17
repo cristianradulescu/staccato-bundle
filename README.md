@@ -62,6 +62,8 @@ All keys are optional and live under the `staccato` root key:
 | `articles_per_page` | positive integer | `10` |
 | `footer_text` | string | `Built with Staccato` |
 | `include_default_styles` | boolean | `true` |
+| `extra_default_styles` | array<string> | `[]` |
+| `highlighter_css` | string | `null` |
 
 ## Customizing templates
 
@@ -77,7 +79,13 @@ This file takes priority over the bundle's own `page.html.twig`, while every oth
 
 ## Default styling
 
-The bundle ships a small, dependency-free stylesheet (no Node/Tailwind build step) and copies it into `build/assets/staccato/staccato.css` on every build, referenced automatically by the default `base.html.twig`. Set `include_default_styles: false` in your `staccato` config to opt out — the stylesheet is then neither copied nor linked, and you can supply your own via an overridden `base.html.twig` plus your own `assets/`.
+The bundle ships a small, dependency-free stylesheet (no Node/Tailwind build step) and copies it into `build/assets/staccato/staccato.css` on every build, referenced automatically by the default `base.html.twig`. 
+
+You can also:
+- Supply additional default styles via `extra_default_styles` (a list of paths relative to `public/`).
+- Supply a highlighter stylesheet via `highlighter_css` (an absolute path to the CSS file).
+
+Set `include_default_styles: false` in your `staccato` config to opt out — the stylesheet is then neither copied nor linked, and you can supply your own via an overridden `base.html.twig` plus your own `assets/`.
 
 ## Writing content
 

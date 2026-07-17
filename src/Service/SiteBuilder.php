@@ -164,15 +164,30 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
     private function copyDefaultStyles(string $buildDirectory): void
     {
-        $sourceStylesheetPath = $this->defaultAssetsDir.'/css/staccato.css';
+        $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
+        $targetAssetsPath = $targetBuildDirectory.'/assets/staccato';
+        $this->filesystem->mkdir($targetAssetsPath);
 
-        if (!is_file($sourceStylesheetPath)) {
-            return;
+        // Copy default staccato.css
+        $sourceStylesheetPath = $this->defaultAssetsDir.'/css/staccato.css';
+        if (is_file($sourceStylesheetPath)) {
+            $this->filesystem->copy($sourceStylesheetPath, $targetAssetsPath.'/staccato.css', true);
         }
 
-        $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
-        $this->filesystem->mkdir($targetBuildDirectory.'/assets/staccato');
-        $this->filesystem->copy($sourceStylesheetPath, $targetBuildDirectory.'/assets/staccato/staccato.css', true);
+        // Copy extra styles
+        foreach ($this->siteConfig->extraDefaultStyles as $extraStyle) {
+            $sourcePath = $this->defaultAssetsDir.'/'.$extraStyle;
+            if (!is_file($sourcePath)) {
+                throw new \InvalidArgumentException('Configured highlighter css file was not found at: '.$this->siteConfig->highlighterCss);
+            }
+            $this->filesystem->copy($sourcePath, $targetAssetsPath.'/'.basename($extraStyle), true);
+        }
+
+        // Copy highlighter css
+        if (null !== $this->siteConfig->highlighterCss && !is_file($this->siteConfig->highlighterCss)) {
+            throw new \InvalidArgumentException('Configured highlighter css file was not found at: '.$this->siteConfig->highlighterCss);
+        }
+        $this->filesystem->copy($this->siteConfig->highlighterCss, $targetAssetsPath.'/highlighter.css', true);
     }
 
     /**
