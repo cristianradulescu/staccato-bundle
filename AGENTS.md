@@ -33,6 +33,7 @@ There is no `bin/console`/`site:build` to run directly in this repo — `site:bu
 - `var/` is gitignored; do not treat it as source.
 - All path-resolving services (`SiteBuilder`, `ContentLoader`, `FixtureContentGenerator`) resolve paths relative to `%kernel.project_dir%` of whatever app boots them — never CWD-relative. Keep this invariant when touching path logic.
 - `SiteConfig` is registered directly as a service by `StaccatoBundle::loadExtension()`; there is no runtime YAML-file reading anymore.
+- Internal links and asset paths in templates must go through the `staccato_path()` Twig function (`src/Twig/StaccatoExtension.php`), which prefixes the base path of `base_url` so sub-path hosting works. Never hardcode root-relative `href="/..."` in templates.
 - `PageRenderer`'s default template arguments are namespaced (`@Staccato/page.html.twig`, etc.); do not revert these to bare filenames or the bundle's own defaults stop resolving.
 
 ## Content Conventions

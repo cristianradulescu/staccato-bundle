@@ -7,11 +7,11 @@
                 {% if article.publishedAt %}
                     <p class="article-meta">{{ article.publishedAt|date('F j, Y') }}</p>
                 {% endif %}
-                <h2 class="article-title"><a href="{{ article.urlPath }}">{{ article.title }}</a></h2>
+                <h2 class="article-title"><a href="{{ staccato_path(article.urlPath) }}">{{ article.title }}</a></h2>
                 {% if article.excerpt %}
                     <p class="article-excerpt">{{ article.excerpt }}</p>
                 {% endif %}
-                <a class="article-link" href="{{ article.urlPath }}">Read more &rarr;</a>
+                <a class="article-link" href="{{ staccato_path(article.urlPath) }}">Read more &rarr;</a>
             </article>
         {% else %}
             <p class="empty-state">No articles yet.</p>
@@ -21,11 +21,11 @@
     {% if home.totalPages > 1 %}
         <nav class="pagination" aria-label="Pagination">
             {% if home.previousPageUrl %}
-                <a class="pagination-link" href="{{ home.previousPageUrl }}">&larr; Newer</a>
+                <a class="pagination-link" href="{{ staccato_path(home.previousPageUrl) }}">&larr; Newer</a>
             {% endif %}
             <span class="pagination-status">Page {{ home.currentPage }} of {{ home.totalPages }}</span>
             {% if home.nextPageUrl %}
-                <a class="pagination-link" href="{{ home.nextPageUrl }}">Older &rarr;</a>
+                <a class="pagination-link" href="{{ staccato_path(home.nextPageUrl) }}">Older &rarr;</a>
             {% endif %}
         </nav>
     {% endif %}

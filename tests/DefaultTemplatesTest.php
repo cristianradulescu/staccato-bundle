@@ -186,6 +186,51 @@ final class DefaultTemplatesTest extends TestCase
     }
 
     #[Test]
+    public function itPrefixesInternalLinksWithTheBasePathOfASubPathBaseUrl(): void
+    {
+        $kernel = new TestKernel('default_templates_sub_path', ['base_url' => 'https://example.test/repo/']);
+        $kernel->boot();
+
+        /** @var ContainerInterface $testContainer */
+        $testContainer = $kernel->getContainer()->get('test.service_container');
+
+        /** @var Environment $twig */
+        $twig = $testContainer->get(Environment::class);
+
+        $home = new PaginatedHomeContext(
+            articles: [
+                new PageListItem(
+                    title: 'First article',
+                    publishedAt: null,
+                    excerpt: '',
+                    urlPath: '/first-article/',
+                ),
+            ],
+            currentPage: 2,
+            totalPages: 3,
+            previousPageUrl: '/',
+            nextPageUrl: '/page/3/',
+        );
+
+        $html = $twig->render('@Staccato/home.html.twig', [
+            'home' => $home,
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+            'includeHighlighterStyles' => true,
+            'stylesheets' => ['custom.css'],
+        ]);
+
+        $kernel->shutdown();
+
+        foreach (['/repo/assets/staccato/staccato.css', '/repo/assets/staccato/highlighter.css', '/repo/assets/staccato/custom.css', '/repo/', '/repo/first-article/', '/repo/page/3/'] as $href) {
+            self::assertStringContainsString('href="'.$href.'"', $html);
+        }
+
+        self::assertDoesNotMatchRegularExpression('#href="/(?!repo/)#', $html);
+    }
+
+    #[Test]
     public function itRendersTheDefaultNotFoundTemplate(): void
     {
         $html = $this->twig->render('@Staccato/404.html.twig', [

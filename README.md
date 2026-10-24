@@ -77,6 +77,24 @@ templates/bundles/StaccatoBundle/page.html.twig
 
 This file takes priority over the bundle's own `page.html.twig`, while every other default template keeps working unchanged. Override `base.html.twig` to change the overall layout, or override individual page templates to change just their content structure.
 
+In your own templates, wrap internal links and asset paths in `staccato_path()` (e.g. `{{ staccato_path(article.urlPath) }}`, `{{ staccato_path('/assets/logo.png') }}`) so they keep working when the site is served from a sub-path — see "Hosting under a sub-path" below.
+
+## Hosting under a sub-path
+
+If the site is served from a sub-path rather than a domain root — e.g. a GitHub Pages project site at `https://user.github.io/my-repo/` — include that path in `base_url`:
+
+```yaml
+staccato:
+    base_url: https://user.github.io/my-repo
+```
+
+The default templates prefix every internal link and stylesheet with it (`/my-repo/about/`, `/my-repo/assets/staccato/staccato.css`), and RSS/sitemap URLs include it as part of `base_url`. The `build/` layout itself does not change: deploy its contents to the sub-path.
+
+Two things to keep in mind:
+
+- Links written by hand inside Markdown content are not rewritten. Use relative links (`../other-article/`) or include the sub-path yourself.
+- With a sub-path `base_url`, previewing `build/` from a local web server's root breaks links. Serve it under the same sub-path, or set the sub-path `base_url` only for the environment you deploy (e.g. in `config/packages/prod/staccato.yaml`).
+
 ## Defaul## Styling and themes
 
 The bundle ships a small, dependency-free default theme (no Node/Tailwind build step). On every build it is copied to `build/assets/staccato/staccato.css` and linked from the default `base.html.twig`, so a new site is styled out of the box.

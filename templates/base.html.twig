@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ siteTitle }}{% endblock %}</title>
     {% if includeDefaultStyles %}
-    <link rel="stylesheet" href="/assets/staccato/staccato.css">
+    <link rel="stylesheet" href="{{ staccato_path('/assets/staccato/staccato.css') }}">
     {% endif %}
     {% if includeHighlighterStyles %}
-    <link rel="stylesheet" href="/assets/staccato/highlighter.css">
+    <link rel="stylesheet" href="{{ staccato_path('/assets/staccato/highlighter.css') }}">
     {% endif %}
     {% for stylesheet in stylesheets %}
-    <link rel="stylesheet" href="/assets/staccato/{{ stylesheet }}">
+    <link rel="stylesheet" href="{{ staccato_path('/assets/staccato/' ~ stylesheet) }}">
     {% endfor %}
 </head>
 <body>
     <header class="site-header">
         <div class="site-container">
-            <a class="site-title" href="/">{{ siteTitle }}</a>
+            <a class="site-title" href="{{ staccato_path('/') }}">{{ siteTitle }}</a>
         </div>
     </header>
 
