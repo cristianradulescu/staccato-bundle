@@ -11,6 +11,18 @@ This repository is the **engine** — a reusable `cristianradulescu/staccato-bun
 
 `symfony/twig-bundle` is installed as a dependency of the bundle: it renders the default templates and makes them overridable (see "Customizing templates" below).
 
+## Quick start: a new blog
+
+`bin/create-blog.sh` creates a Symfony application with Staccato installed, a sample article (plus a draft) and an About page, then builds it:
+
+```bash
+bin/create-blog.sh --title "My Blog" --base-url https://blog.example.com my-blog
+cd my-blog
+php -S localhost:8000 -t build
+```
+
+It checks for PHP 8.5+ and Composer first. Options: `--bundle-path <path>` installs the bundle from a local checkout instead of Packagist, and `--no-build` skips the initial build. Run it with `--help` to see all options.
+
 ## Installation (into a consuming Symfony app)
 
 ```bash

@@ -20,4 +20,5 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 - Build safety: configuration, content, duplicate output paths and pagination conflicts are validated before the build directory is cleaned, so a failing build keeps the previous output.
 - Paginated homepage generation from `content/articles/` (`articles_per_page`), plus `404.html`, `rss.xml`, and `sitemap.xml` generation, and static asset mirroring into `build/assets/`.
 - Optional Faker-based fixture content generation (`FixtureContentGenerator`) for demoing a site without committing real content; requires the suggested `fakerphp/faker` package.
+- `bin/create-blog.sh`, a helper script that creates a new Symfony application with Staccato, sample content and a first build.
 - Quality tooling: PHP CS Fixer, PHPStan (level 7), PHPUnit, and a `composer qa` quality gate.

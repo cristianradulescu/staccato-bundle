@@ -23,6 +23,7 @@ There is no `bin/console`/`site:build` to run directly in this repo — `site:bu
 ## What Exists / What Doesn't
 - No GitHub Pages workflow here anymore (that was app/deployment concern, moved out with the rest of the site-hosting bits).
 - No controllers, no HTTP entrypoint, no app `Kernel.php` — this is a library, not a runnable app.
+- `bin/create-blog.sh` is a standalone, user-facing Bash script (not used by the bundle or tests) that scaffolds a new Symfony app with the bundle, sample content and a first build. It runs on users' machines, so keep it portable (no GNU-only `sed` flags etc.); `--bundle-path .` installs this checkout for local testing.
 - `tests/Fixtures/TestKernel.php` boots a minimal `FrameworkBundle` + `TwigBundle` + `StaccatoBundle` kernel purely to test the bundle's DI wiring (`tests/StaccatoBundleTest.php`) and to render the default templates end-to-end (`tests/DefaultTemplatesTest.php`).
 
 ## Codebase Boundaries
