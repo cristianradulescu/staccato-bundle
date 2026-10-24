@@ -38,6 +38,7 @@ There is no `bin/console`/`site:build` to run directly in this repo — `site:bu
 ## Content Conventions
 - Supported front matter keys are `title`, `slug`, `date`, `excerpt`, `draft`. This is engine behavior (`ContentLoader`), independent of which app's `content/` directory is being read.
 - Homepage listing pulls only from a source path starting with `articles/`.
+- `index.md` files are rejected by `ContentLoader` (`content/docs.md` maps to `/docs/` instead), and a slug resolving to `/` is rejected by `OutputPathResolver` — `/` is reserved for the generated homepage.
 
 ## Editing Guidance
 - Prefer adding engine logic under `src/` as services/commands (autowiring and autoconfigure are enabled via `config/services.yaml`).

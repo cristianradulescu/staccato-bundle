@@ -14,18 +14,6 @@ final class OutputPathResolver
             throw new \RuntimeException(sprintf('Unable to derive slug for "%s".', $sourcePath));
         }
 
-        if ('index' === $pathWithoutExtension) {
-            return '';
-        }
-
-        if (str_ends_with($pathWithoutExtension, '/index')) {
-            $pathWithoutExtension = substr($pathWithoutExtension, 0, -strlen('/index'));
-        }
-
-        if ('' === $pathWithoutExtension) {
-            return '';
-        }
-
         return $this->normalizeSlug($pathWithoutExtension, $sourcePath);
     }
 
@@ -33,15 +21,10 @@ final class OutputPathResolver
     {
         $normalized = trim(str_replace('\\', '/', strtolower($rawSlug)));
         $normalized = trim($normalized, '/');
-
-        if ('' === $normalized || 'index' === $normalized) {
-            return '';
-        }
-
         $segments = array_filter(explode('/', $normalized), static fn (string $segment): bool => '' !== $segment);
 
         if ([] === $segments) {
-            return '';
+            throw new \RuntimeException(sprintf('Slug of "%s" resolves to "/", which is reserved for the generated homepage.', $sourcePath));
         }
 
         $cleanSegments = [];

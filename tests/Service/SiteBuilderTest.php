@@ -47,15 +47,16 @@ final class SiteBuilderTest extends TestCase
     public function itBuildsPagesWithDirectoryStyleOutputPaths(): void
     {
         mkdir($this->projectDir.'/content/articles/docs', 0777, true);
-        file_put_contents($this->projectDir.'/content/index.md', "---\ntitle: Home\n---\n# Welcome");
+        file_put_contents($this->projectDir.'/content/about.md', "---\ntitle: About\n---\n# About");
         file_put_contents($this->projectDir.'/content/articles/docs/getting-started.md', "---\ndate: 2026-04-20\n---\n# Start");
 
         $builder = $this->createBuilder();
         $result = $builder->build();
 
-        self::assertSame(1, $result->generatedPages);
+        self::assertSame(2, $result->generatedPages);
         self::assertSame(0, $result->skippedDraftPages);
         self::assertFileExists($this->projectDir.'/build/index.html');
+        self::assertFileExists($this->projectDir.'/build/about/index.html');
         self::assertFileExists($this->projectDir.'/build/docs/getting-started/index.html');
         self::assertFileExists($this->projectDir.'/build/404.html');
         self::assertFileExists($this->projectDir.'/build/rss.xml');
@@ -98,7 +99,7 @@ final class SiteBuilderTest extends TestCase
     public function itCopiesAssetsWhenAssetsDirectoryExists(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
         mkdir($this->projectDir.'/assets/images', 0777, true);
         file_put_contents($this->projectDir.'/assets/images/logo.txt', 'logo');
 
@@ -113,7 +114,7 @@ final class SiteBuilderTest extends TestCase
     public function itCopiesDefaultStylesByDefault(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
 
         $builder = $this->createBuilder();
         $result = $builder->build();
@@ -126,7 +127,7 @@ final class SiteBuilderTest extends TestCase
     public function itSkipsDefaultStylesWhenDisabled(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
 
         $builder = $this->createBuilder(includeDefaultStyles: false);
         $builder->build();
@@ -138,7 +139,7 @@ final class SiteBuilderTest extends TestCase
     public function itDoesNotCopyHighlighterStylesWhenNotConfigured(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
 
         $builder = $this->createBuilder();
         $builder->build();
@@ -151,7 +152,7 @@ final class SiteBuilderTest extends TestCase
     public function itCopiesHighlighterStylesResolvedFromTheProjectDirectory(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
         mkdir($this->projectDir.'/themes', 0777, true);
         file_put_contents($this->projectDir.'/themes/highlight.css', '.hl-keyword { color: red; }');
 
@@ -184,7 +185,7 @@ final class SiteBuilderTest extends TestCase
     public function itCopiesStylesheetsResolvedFromTheProjectDirectory(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
         mkdir($this->projectDir.'/themes', 0777, true);
         file_put_contents($this->projectDir.'/themes/custom.css', '.custom { color: blue; }');
 
@@ -250,7 +251,7 @@ final class SiteBuilderTest extends TestCase
     public function itCopiesOwnStylesheetsWhenDefaultStylesAreDisabled(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
         mkdir($this->projectDir.'/themes', 0777, true);
         file_put_contents($this->projectDir.'/themes/my-theme.css', 'body { color: black; }');
         file_put_contents($this->projectDir.'/themes/highlight.css', '.hl-keyword { color: red; }');
@@ -267,9 +268,9 @@ final class SiteBuilderTest extends TestCase
     #[Test]
     public function itFailsWhenTwoPagesResolveToTheSameOutputPath(): void
     {
-        mkdir($this->projectDir.'/content/articles/about', 0777, true);
+        mkdir($this->projectDir.'/content/articles', 0777, true);
         file_put_contents($this->projectDir.'/content/articles/about.md', '# About');
-        file_put_contents($this->projectDir.'/content/articles/about/index.md', '# About Index');
+        file_put_contents($this->projectDir.'/content/articles/about-us.md', "---\nslug: about\n---\n# About Us");
 
         $builder = $this->createBuilder();
 
@@ -283,8 +284,8 @@ final class SiteBuilderTest extends TestCase
     public function itFailsWhenHomePaginationConflictsWithContentPath(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
-        mkdir($this->projectDir.'/content/page/2', 0777, true);
-        file_put_contents($this->projectDir.'/content/page/2/index.md', '# Reserved by pagination');
+        mkdir($this->projectDir.'/content/page', 0777, true);
+        file_put_contents($this->projectDir.'/content/page/2.md', '# Reserved by pagination');
 
         for ($index = 1; $index <= 12; ++$index) {
             file_put_contents(

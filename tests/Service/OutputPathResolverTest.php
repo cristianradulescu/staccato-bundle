@@ -18,15 +18,19 @@ final class OutputPathResolverTest extends TestCase
     }
 
     #[Test]
-    public function itDerivesRootSlugFromRootIndexFile(): void
+    public function itDerivesSlugFromSourcePath(): void
     {
-        self::assertSame('', $this->resolver->deriveSlugFromSourcePath('index.md'));
+        self::assertSame('docs', $this->resolver->deriveSlugFromSourcePath('docs.md'));
+        self::assertSame('docs/getting-started', $this->resolver->deriveSlugFromSourcePath('docs/getting-started.md'));
     }
 
     #[Test]
-    public function itDerivesParentSlugFromNestedIndexFile(): void
+    public function itThrowsWhenSlugResolvesToTheHomepage(): void
     {
-        self::assertSame('docs', $this->resolver->deriveSlugFromSourcePath('docs/index.md'));
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Slug of "about.md" resolves to "/", which is reserved for the generated homepage.');
+
+        $this->resolver->normalizeSlug('/', 'about.md');
     }
 
     #[Test]

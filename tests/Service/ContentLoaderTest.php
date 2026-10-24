@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Staccato\Tests\Service;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Staccato\Service\ContentLoader;
@@ -73,35 +74,73 @@ final class ContentLoaderTest extends TestCase
     }
 
     #[Test]
-    public function itDerivesTitleAndRootSlugFromIndexFile(): void
+    public function itDerivesTitleSlugAndExcerptFromSourcePathWithoutFrontMatter(): void
     {
         mkdir($this->projectDir.'/content', 0777, true);
-        file_put_contents($this->projectDir.'/content/index.md', "# Home\n");
+        file_put_contents($this->projectDir.'/content/about-us.md', "# Home\n");
 
         $loader = $this->createLoader();
         $pages = $loader->loadPages();
 
         self::assertCount(1, $pages);
-        self::assertSame('Index', $pages[0]->title);
-        self::assertSame('', $pages[0]->slug);
-        self::assertSame('/', $pages[0]->urlPath);
+        self::assertSame('About Us', $pages[0]->title);
+        self::assertSame('about-us', $pages[0]->slug);
+        self::assertSame('/about-us/', $pages[0]->urlPath);
         self::assertSame('Home', $pages[0]->excerpt);
         self::assertNull($pages[0]->publishedAt);
     }
 
     #[Test]
-    public function itMapsNestedIndexFileToParentSlug(): void
+    public function itMapsSiblingMarkdownFileToDirectoryUrl(): void
     {
         mkdir($this->projectDir.'/content/docs', 0777, true);
-        file_put_contents($this->projectDir.'/content/docs/index.md', "# Docs\n");
+        file_put_contents($this->projectDir.'/content/docs.md', "# Docs\n");
+        file_put_contents($this->projectDir.'/content/docs/setup.md', "# Setup\n");
 
         $loader = $this->createLoader();
         $pages = $loader->loadPages();
 
-        self::assertCount(1, $pages);
-        self::assertSame('docs', $pages[0]->slug);
-        self::assertSame('/docs/', $pages[0]->urlPath);
-        self::assertSame('Docs', $pages[0]->title);
+        self::assertSame(['/docs/', '/docs/setup/'], array_map(static fn ($page): string => $page->urlPath, $pages));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function indexFiles(): iterable
+    {
+        yield 'root index' => ['index.md', 'the homepage is generated from the articles/ directory'];
+        yield 'articles index' => ['articles/index.md', 'the homepage is generated from the articles/ directory'];
+        yield 'nested index' => ['docs/index.md', 'Rename it to "docs.md"'];
+        yield 'uppercase index' => ['docs/Index.md', 'Rename it to "docs.md"'];
+    }
+
+    #[Test]
+    #[DataProvider('indexFiles')]
+    public function itRejectsIndexFiles(string $sourcePath, string $expectedHint): void
+    {
+        mkdir(dirname($this->projectDir.'/content/'.$sourcePath), 0777, true);
+        file_put_contents($this->projectDir.'/content/'.$sourcePath, "# Index\n");
+
+        $loader = $this->createLoader();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/^Content file "'.preg_quote($sourcePath, '/').'" is not supported: index\.md files are not used.*'.preg_quote($expectedHint, '/').'/');
+
+        $loader->loadPages();
+    }
+
+    #[Test]
+    public function itRejectsFrontMatterSlugResolvingToTheHomepage(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/home.md', "---\nslug: /\n---\n# Home\n");
+
+        $loader = $this->createLoader();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('reserved for the generated homepage');
+
+        $loader->loadPages();
     }
 
     #[Test]

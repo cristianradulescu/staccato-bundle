@@ -58,7 +58,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             : $this->normalizeRelativeDirectory($contentDirectory);
 
         $allPages = $this->contentLoader->loadPages($sourceContentDirectory);
-        $pagesToBuild = [];
+        $detailPages = [];
         $skippedDraftPages = 0;
 
         foreach ($allPages as $page) {
@@ -68,13 +68,8 @@ final readonly class SiteBuilder implements SiteBuilderInterface
                 continue;
             }
 
-            $pagesToBuild[] = $page;
+            $detailPages[] = $page;
         }
-
-        $detailPages = array_values(array_filter(
-            $pagesToBuild,
-            static fn (Page $page): bool => '/' !== $page->urlPath,
-        ));
 
         $detailOutputPaths = $this->assertNoDuplicateOutputPaths($detailPages, $buildDirectory);
 

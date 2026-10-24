@@ -55,6 +55,7 @@ final class ContentLoader
 
         foreach ($finder as $file) {
             $relativePath = $file->getRelativePathname();
+            $this->assertNotIndexFile($relativePath);
             $source = $file->getContents();
             [$frontMatter, $markdownBody] = $this->extractFrontMatter($source, $relativePath);
             $title = $this->resolveTitle($frontMatter, $relativePath);
@@ -225,6 +226,26 @@ final class ContentLoader
         return $draft;
     }
 
+    /**
+     * index.md files are not supported: "docs.md" already maps to /docs/, and / is the generated homepage.
+     */
+    private function assertNotIndexFile(string $sourcePath): void
+    {
+        $normalized = str_replace('\\', '/', $sourcePath);
+
+        if ('index.md' !== strtolower(basename($normalized))) {
+            return;
+        }
+
+        $directory = dirname($normalized);
+
+        if ('.' === $directory || 'articles' === $directory) {
+            throw new \RuntimeException(sprintf('Content file "%s" is not supported: index.md files are not used, and the homepage is generated from the articles/ directory. Remove the file or rename it.', $sourcePath));
+        }
+
+        throw new \RuntimeException(sprintf('Content file "%s" is not supported: index.md files are not used. Rename it to "%s.md" or set a "slug" in its front matter.', $sourcePath, $directory));
+    }
+
     private function humanizePathTitle(string $sourcePath): string
     {
         $normalized = str_replace('\\', '/', $sourcePath);
@@ -236,12 +257,6 @@ final class ContentLoader
 
         $segments = explode('/', $withoutExtension);
         $lastSegment = end($segments);
-
-        if ('index' === $lastSegment && count($segments) > 1) {
-            $parentSegment = $segments[count($segments) - 2] ?? '';
-            $lastSegment = 'index' === $parentSegment ? '' : $parentSegment;
-        }
-
         $candidate = trim(str_replace(['-', '_'], ' ', $lastSegment));
 
         if ('' === $candidate) {

@@ -117,8 +117,9 @@ Supported Markdown front matter keys:
 
 Notes:
 
-- `index.md` maps to the directory root (`/` at root, `/docs/` for `content/docs/index.md`).
-- Missing `title`/`slug` are derived from the source path.
+- Missing `title`/`slug` are derived from the source path: `content/about.md` -> `/about/`, `content/docs/setup.md` -> `/docs/setup/`. Files in `content/articles/` drop the `articles/` prefix (`content/articles/hello.md` -> `/hello/`).
+- To give a directory its own page, add a sibling file: `content/docs.md` -> `/docs/`, next to `content/docs/setup.md` -> `/docs/setup/`.
+- `index.md` files are not supported and fail the build with a hint on how to rename them. The homepage `/` is always generated from `content/articles/`, so a `slug` resolving to `/` fails the build too.
 - Homepage listing only includes files from `content/articles/`.
 
 ## `site:build` command
