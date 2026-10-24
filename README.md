@@ -6,7 +6,7 @@ This repository is the **engine** — a reusable `cristianradulescu/staccato-bun
 
 ## Requirements
 
-- PHP 8.4+
+- PHP 8.5+
 - A Symfony 8 application to install the bundle into (with `symfony/twig-bundle`, so the bundle's default templates are discovered and overridable — see "Customizing templates" below)
 
 ## Installation (into a consuming Symfony app)

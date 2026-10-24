@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Project Snapshot
-- Symfony 8 bundle library (PHP >= 8.4) using Composer, package name `cristianradulescu/staccato-bundle`.
+- Symfony 8 bundle library (PHP >= 8.5) using Composer, package name `cristianradulescu/staccato-bundle`.
 - This repo is the **engine**: no `content/` or app kernel live here (those belong to whatever Symfony application requires this bundle), but it does ship default `templates/` and a default stylesheet (`public/css/staccato.css`) so consumers get a working site out of the box.
 - Static-site generator uses Symfony-horizontal structure (`src/Model/`, `src/Service/`, `src/Command/`), plus `src/StaccatoBundle.php` (extends `AbstractBundle`).
 - Core build flow: `ContentLoader` -> `SiteBuilder` -> `SiteBuildCommand`, with `SiteConfig` built directly by `StaccatoBundle::loadExtension()` from the `staccato` config tree, and optional fixtures from `FixtureContentGenerator`.
