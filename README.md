@@ -64,6 +64,13 @@ All keys are optional and live under the `staccato` root key:
 | `include_default_styles` | boolean | `true` |
 | `stylesheets` | array<string> | `[]` |
 | `highlighter_css` | string | `null` |
+| `content_dir` | relative path | `content` |
+| `build_dir` | relative path | `build` |
+| `assets_dir` | relative path | `assets` |
+
+`content_dir`, `build_dir` and `assets_dir` are relative to your project root and may not contain `.` or `..` segments. Because the build directory is removed on every clean build, `build_dir` may not equal, contain, or sit inside `content_dir` or `assets_dir`. Whatever `assets_dir` is called, its files are published under `build/assets/`, so links like `/assets/logo.png` keep working.
+
+The rest of this README uses the default names (`content/`, `build/`, `assets/`).
 
 ## Customizing templates
 

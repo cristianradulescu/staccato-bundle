@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Staccato\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Staccato\Model\SiteConfig;
@@ -34,6 +35,9 @@ final class StaccatoBundleTest extends TestCase
         self::assertTrue($siteConfig->includeDefaultStyles);
         self::assertSame([], $siteConfig->stylesheets);
         self::assertNull($siteConfig->highlighterCss);
+        self::assertSame('content', $siteConfig->contentDirectory);
+        self::assertSame('build', $siteConfig->buildDirectory);
+        self::assertSame('assets', $siteConfig->assetsDirectory);
 
         $kernel->shutdown();
     }
@@ -50,6 +54,9 @@ final class StaccatoBundleTest extends TestCase
             'include_default_styles' => false,
             'stylesheets' => ['assets/css/custom.css'],
             'highlighter_css' => 'vendor/tempest/highlight/src/Themes/Css/github-light.css',
+            'content_dir' => 'site/pages/',
+            'build_dir' => 'public_html',
+            'assets_dir' => 'site\\static',
         ]);
         $kernel->boot();
 
@@ -63,6 +70,9 @@ final class StaccatoBundleTest extends TestCase
         self::assertFalse($siteConfig->includeDefaultStyles);
         self::assertSame(['assets/css/custom.css'], $siteConfig->stylesheets);
         self::assertSame('vendor/tempest/highlight/src/Themes/Css/github-light.css', $siteConfig->highlighterCss);
+        self::assertSame('site/pages', $siteConfig->contentDirectory);
+        self::assertSame('public_html', $siteConfig->buildDirectory);
+        self::assertSame('site/static', $siteConfig->assetsDirectory);
 
         $kernel->shutdown();
     }
@@ -75,6 +85,35 @@ final class StaccatoBundleTest extends TestCase
         ]);
 
         $this->expectException(InvalidConfigurationException::class);
+
+        $kernel->boot();
+    }
+
+    /**
+     * @return iterable<string, array{array<string, string>, string}>
+     */
+    public static function invalidDirectories(): iterable
+    {
+        yield 'absolute path' => [['content_dir' => '/var/www/content'], 'must be a path relative to the project directory'];
+        yield 'windows absolute path' => [['build_dir' => 'C:\\site\\build'], 'must be a path relative to the project directory'];
+        yield 'parent segment' => [['assets_dir' => '../assets'], 'must be a path relative to the project directory'];
+        yield 'current directory' => [['build_dir' => '.'], 'must be a path relative to the project directory'];
+        yield 'build equals content' => [['build_dir' => 'content'], 'must not overlap with "staccato.content_dir"'];
+        yield 'build inside content' => [['build_dir' => 'content/build'], 'must not overlap with "staccato.content_dir"'];
+        yield 'build contains assets' => [['build_dir' => 'site', 'assets_dir' => 'site/assets'], 'must not overlap with "staccato.assets_dir"'];
+    }
+
+    /**
+     * @param array<string, string> $config
+     */
+    #[Test]
+    #[DataProvider('invalidDirectories')]
+    public function itRejectsUnsafeDirectories(array $config, string $expectedMessage): void
+    {
+        $kernel = new TestKernel('site_config_invalid_directories_'.md5(serialize($config)), $config);
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage($expectedMessage);
 
         $kernel->boot();
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Staccato;
 
 use Staccato\Model\SiteConfig;
+use Symfony\Component\Config\Definition\Builder\ScalarNodeDefinition;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -50,6 +51,24 @@ final class StaccatoBundle extends AbstractBundle
                 ->scalarNode('highlighter_css')
                      ->defaultValue(null)
                 ->end()
+            ->end()
+            ->append(self::projectDirectoryNode('content_dir', 'content'))
+            ->append(self::projectDirectoryNode('build_dir', 'build'))
+            ->append(self::projectDirectoryNode('assets_dir', 'assets'))
+            ->validate()
+                ->always(static function (array $config): array {
+                    // build_dir is removed on every clean build, so it must never contain or sit inside the sources.
+                    foreach (['content_dir', 'assets_dir'] as $sourceKey) {
+                        $build = $config['build_dir'].'/';
+                        $source = $config[$sourceKey].'/';
+
+                        if (str_starts_with($build, $source) || str_starts_with($source, $build)) {
+                            throw new \InvalidArgumentException(sprintf('The "staccato.build_dir" value "%s" must not overlap with "staccato.%s" ("%s"), because the build directory is removed on every clean build.', $config['build_dir'], $sourceKey, $config[$sourceKey]));
+                        }
+                    }
+
+                    return $config;
+                })
             ->end();
     }
 
@@ -72,6 +91,35 @@ final class StaccatoBundle extends AbstractBundle
                 (bool) $config['include_default_styles'],
                 (array) $config['stylesheets'],
                 $config['highlighter_css'],
+                $config['content_dir'],
+                $config['build_dir'],
+                $config['assets_dir'],
             ]);
+    }
+
+    /**
+     * A directory relative to %kernel.project_dir%, normalized without leading/trailing slashes.
+     */
+    private static function projectDirectoryNode(string $name, string $default): ScalarNodeDefinition
+    {
+        $node = new ScalarNodeDefinition($name);
+        $node
+            ->cannotBeEmpty()
+            ->defaultValue($default)
+            ->validate()
+                ->always(static function (mixed $value) use ($name): string {
+                    $normalized = str_replace('\\', '/', trim((string) $value));
+                    $segments = explode('/', trim($normalized, '/'));
+                    $isAbsolute = str_starts_with($normalized, '/') || 1 === preg_match('#^[a-zA-Z]:/#', $normalized);
+
+                    if ($isAbsolute || [] !== array_intersect($segments, ['', '.', '..'])) {
+                        throw new \InvalidArgumentException(sprintf('The "staccato.%s" value "%s" must be a path relative to the project directory, without "." or ".." segments.', $name, $value));
+                    }
+
+                    return implode('/', $segments);
+                })
+            ->end();
+
+        return $node;
     }
 }

@@ -9,9 +9,6 @@ use Staccato\Model\SiteBuildResult;
 interface SiteBuilderInterface
 {
     public function build(
-        string $contentDirectory = 'content',
-        string $buildDirectory = 'build',
-        string $assetsDirectory = 'assets',
         bool $clean = true,
         bool $includeDrafts = false,
         bool $useFixtures = false,

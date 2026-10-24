@@ -9,6 +9,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Staccato\Command\SiteBuildCommand;
 use Staccato\Model\SiteBuildResult;
+use Staccato\Model\SiteConfig;
 use Staccato\Service\SiteBuilderInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -32,17 +33,10 @@ final class SiteBuildCommandTest extends TestCase
         $this->siteBuilderMock
             ->expects(self::once())
             ->method('build')
-            ->with(
-                'content',
-                'build',
-                'assets',
-                true,
-                true,
-                false,
-            )
+            ->with(true, true, false)
             ->willReturn(new SiteBuildResult(4, 0, true, 125));
 
-        $command = new SiteBuildCommand($this->siteBuilder, 'dev');
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'dev');
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([]);
         $display = $tester->getDisplay();
@@ -61,17 +55,10 @@ final class SiteBuildCommandTest extends TestCase
         $this->siteBuilderMock
             ->expects(self::once())
             ->method('build')
-            ->with(
-                'content',
-                'build',
-                'assets',
-                true,
-                false,
-                false,
-            )
+            ->with(true, false, false)
             ->willReturn(new SiteBuildResult(2, 1, false, 80));
 
-        $command = new SiteBuildCommand($this->siteBuilder, 'prod');
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'prod');
         $tester = new CommandTester($command);
         $tester->execute([]);
 
@@ -85,17 +72,10 @@ final class SiteBuildCommandTest extends TestCase
         $this->siteBuilderMock
             ->expects(self::once())
             ->method('build')
-            ->with(
-                'content',
-                'build',
-                'assets',
-                false,
-                true,
-                false,
-            )
+            ->with(false, true, false)
             ->willReturn(new SiteBuildResult(1, 0, false, 50));
 
-        $command = new SiteBuildCommand($this->siteBuilder, 'dev');
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'dev');
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([
             '--no-clean' => true,
@@ -112,7 +92,7 @@ final class SiteBuildCommandTest extends TestCase
             ->method('build')
             ->willThrowException(new \RuntimeException('Build failed for test'));
 
-        $command = new SiteBuildCommand($this->siteBuilder, 'dev');
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'dev');
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([]);
 
@@ -128,11 +108,11 @@ final class SiteBuildCommandTest extends TestCase
             ->method('build')
             ->willReturn(new SiteBuildResult(0, 0, false, 30));
 
-        $command = new SiteBuildCommand($this->siteBuilder, 'dev');
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'dev');
         $tester = new CommandTester($command);
         $tester->execute([]);
 
-        self::assertStringContainsString('No pages were generated.', $tester->getDisplay());
+        self::assertStringContainsString('No pages were generated. Add Markdown files under pages/.', $tester->getDisplay());
     }
 
     #[Test]
@@ -141,17 +121,10 @@ final class SiteBuildCommandTest extends TestCase
         $this->siteBuilderMock
             ->expects(self::once())
             ->method('build')
-            ->with(
-                'content',
-                'build',
-                'assets',
-                true,
-                true,
-                true,
-            )
+            ->with(true, true, true)
             ->willReturn(new SiteBuildResult(35, 0, false, 95));
 
-        $command = new SiteBuildCommand($this->siteBuilder, 'dev');
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'dev');
         $tester = new CommandTester($command);
         $exitCode = $tester->execute([
             '--use-fixtures' => true,
@@ -160,5 +133,18 @@ final class SiteBuildCommandTest extends TestCase
         self::assertSame(Command::SUCCESS, $exitCode);
         self::assertStringContainsString('Fixtures mode', $tester->getDisplay());
         self::assertStringContainsString('yes', $tester->getDisplay());
+    }
+
+    private function createSiteConfig(): SiteConfig
+    {
+        return new SiteConfig(
+            title: 'Test Site',
+            baseUrl: 'https://example.test',
+            description: 'Test site description',
+            articlesPerPage: 10,
+            footerText: 'Built with Staccato',
+            includeDefaultStyles: true,
+            contentDirectory: 'pages',
+        );
     }
 }

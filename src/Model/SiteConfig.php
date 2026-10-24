@@ -18,6 +18,9 @@ final readonly class SiteConfig
         public bool $includeDefaultStyles,
         public array $stylesheets = [],
         public ?string $highlighterCss = null,
+        public string $contentDirectory = 'content',
+        public string $buildDirectory = 'build',
+        public string $assetsDirectory = 'assets',
     ) {
     }
 }

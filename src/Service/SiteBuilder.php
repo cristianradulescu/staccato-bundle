@@ -30,16 +30,16 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     }
 
     public function build(
-        string $contentDirectory = 'content',
-        string $buildDirectory = 'build',
-        string $assetsDirectory = 'assets',
         bool $clean = true,
         bool $includeDrafts = false,
         bool $useFixtures = false,
     ): SiteBuildResult {
         $startedAt = microtime(true);
-        $buildDirectoryPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
         $siteConfig = $this->siteConfig;
+        $contentDirectory = $siteConfig->contentDirectory;
+        $buildDirectory = $siteConfig->buildDirectory;
+        $assetsDirectory = $siteConfig->assetsDirectory;
+        $buildDirectoryPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
 
         // Configuration and content are loaded and validated before cleaning, so a build that
         // fails on them leaves the previous output in place instead of an emptied build directory.
@@ -160,7 +160,8 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             return false;
         }
 
-        $targetAssetsPath = $targetBuildDirectory.'/'.$normalizedAssetsDirectory;
+        // Always published under /assets/, whatever the source directory is called, so template links stay stable.
+        $targetAssetsPath = $targetBuildDirectory.'/assets';
         $this->filesystem->mirror($sourceAssetsPath, $targetAssetsPath);
 
         return true;

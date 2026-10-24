@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Staccato\Command;
 
+use Staccato\Model\SiteConfig;
 use Staccato\Service\SiteBuilderInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,6 +22,7 @@ final class SiteBuildCommand extends Command
 {
     public function __construct(
         private readonly SiteBuilderInterface $siteBuilder,
+        private readonly SiteConfig $siteConfig,
         #[Autowire('%kernel.environment%')]
         private readonly string $kernelEnvironment,
     ) {
@@ -41,7 +43,7 @@ final class SiteBuildCommand extends Command
                 'use-fixtures',
                 null,
                 InputOption::VALUE_NONE,
-                'Generate and build fixture content (35 Faker-based articles) instead of using content/.',
+                'Generate and build fixture content (35 Faker-based articles) instead of using the content directory.',
             );
     }
 
@@ -77,7 +79,7 @@ final class SiteBuildCommand extends Command
         );
 
         if (0 === $result->generatedPages) {
-            $io->warning('No pages were generated. Add Markdown files under content/.');
+            $io->warning(sprintf('No pages were generated. Add Markdown files under %s/.', $this->siteConfig->contentDirectory));
         }
 
         return Command::SUCCESS;

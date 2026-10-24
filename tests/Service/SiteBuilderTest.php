@@ -318,6 +318,25 @@ final class SiteBuilderTest extends TestCase
     }
 
     #[Test]
+    public function itUsesTheConfiguredDirectories(): void
+    {
+        mkdir($this->projectDir.'/site/pages/articles', 0777, true);
+        file_put_contents($this->projectDir.'/site/pages/articles/hello.md', '# Hello');
+        mkdir($this->projectDir.'/static/images', 0777, true);
+        file_put_contents($this->projectDir.'/static/images/logo.txt', 'logo');
+
+        $builder = $this->createBuilder(contentDirectory: 'site/pages', buildDirectory: 'public_html', assetsDirectory: 'static');
+        $result = $builder->build();
+
+        self::assertSame(1, $result->generatedPages);
+        self::assertFileExists($this->projectDir.'/public_html/index.html');
+        self::assertFileExists($this->projectDir.'/public_html/hello/index.html');
+        self::assertFileExists($this->projectDir.'/public_html/assets/images/logo.txt');
+        self::assertFileExists($this->projectDir.'/public_html/assets/staccato/staccato.css');
+        self::assertDirectoryDoesNotExist($this->projectDir.'/build');
+    }
+
+    #[Test]
     public function itFailsWhenTwoPagesResolveToTheSameOutputPath(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
@@ -403,7 +422,7 @@ final class SiteBuilderTest extends TestCase
     /**
      * @param list<string> $stylesheets
      */
-    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null, array $stylesheets = []): SiteBuilder
+    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null, array $stylesheets = [], string $contentDirectory = 'content', string $buildDirectory = 'build', string $assetsDirectory = 'assets'): SiteBuilder
     {
         $resolver = new OutputPathResolver();
         $loader = new ContentLoader($this->projectDir, $resolver);
@@ -417,6 +436,9 @@ final class SiteBuilderTest extends TestCase
             includeDefaultStyles: $includeDefaultStyles,
             stylesheets: $stylesheets,
             highlighterCss: $highlighterCss,
+            contentDirectory: $contentDirectory,
+            buildDirectory: $buildDirectory,
+            assetsDirectory: $assetsDirectory,
         );
         $twig = new Environment(new ArrayLoader([
             '@Staccato/page.html.twig' => '<html><body><h1>{{ page.title }}</h1>{{ page.html|raw }}</body></html>',
