@@ -159,7 +159,7 @@ Notes:
 Options:
 
 - `--clean` (default) cleans `build/` before generation; `--no-clean` keeps existing output.
-- `--use-fixtures` generates 35 Faker-based demo articles instead of reading `content/`.
+- `--use-fixtures` generates 35 Faker-based demo articles instead of reading `content/`. It needs the optional `fakerphp/faker` package: `composer require --dev fakerphp/faker`.
 
 Environment behavior:
 

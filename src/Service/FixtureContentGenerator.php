@@ -25,6 +25,11 @@ final readonly class FixtureContentGenerator
             throw new \RuntimeException('Fixture article count must be at least 1.');
         }
 
+        // Faker is an optional dependency: only fixture generation needs it.
+        if (!class_exists(Factory::class)) {
+            throw new \RuntimeException('Generating fixture content requires the fakerphp/faker package. Install it with "composer require --dev fakerphp/faker".');
+        }
+
         $fixturesRoot = $this->projectDir.'/'.self::FIXTURES_CONTENT_DIR;
         $articlesPath = $fixturesRoot.'/articles';
         $this->filesystem->remove($fixturesRoot);

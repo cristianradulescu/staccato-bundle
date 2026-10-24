@@ -14,7 +14,6 @@
         "php": ">=8.5",
         "ext-ctype": "*",
         "ext-iconv": "*",
-        "fakerphp/faker": "^1.24",
         "symfony/config": "8.1.*",
         "symfony/console": "8.1.*",
         "symfony/dependency-injection": "8.1.*",
@@ -33,7 +32,8 @@
         "sort-packages": true
     },
     "suggest": {
-        "symfony/twig-bundle": "Required to render Staccato's default templates and to allow per-template overrides in your app."
+        "symfony/twig-bundle": "Required to render Staccato's default templates and to allow per-template overrides in your app.",
+        "fakerphp/faker": "Required for the site:build --use-fixtures option, which generates demo articles."
     },
     "autoload": {
         "psr-4": {
@@ -60,6 +60,7 @@
         "symfony/symfony": "*"
     },
     "require-dev": {
+        "fakerphp/faker": "^1.24",
         "friendsofphp/php-cs-fixer": "^3.95",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^13.1",
