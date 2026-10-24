@@ -6,10 +6,13 @@
     <title>{% block title %}{{ siteTitle }}{% endblock %}</title>
     {% if includeDefaultStyles %}
     <link rel="stylesheet" href="/assets/staccato/staccato.css">
+    {% endif %}
     {% if includeHighlighterStyles %}
     <link rel="stylesheet" href="/assets/staccato/highlighter.css">
     {% endif %}
-    {% endif %}
+    {% for stylesheet in stylesheets %}
+    <link rel="stylesheet" href="/assets/staccato/{{ stylesheet }}">
+    {% endfor %}
 </head>
 <body>
     <header class="site-header">

@@ -15,7 +15,10 @@ final readonly class PageRenderer
     ) {
     }
 
-    public function renderPage(Page $page, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, string $template = '@Staccato/page.html.twig'): string
+    /**
+     * @param list<string> $stylesheets file names copied into assets/staccato/
+     */
+    public function renderPage(Page $page, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, array $stylesheets = [], string $template = '@Staccato/page.html.twig'): string
     {
         return $this->twig->render($template, [
             'page' => $page,
@@ -23,10 +26,14 @@ final readonly class PageRenderer
             'footerText' => $footerText,
             'includeDefaultStyles' => $includeDefaultStyles,
             'includeHighlighterStyles' => $includeHighlighterStyles,
+            'stylesheets' => $stylesheets,
         ]);
     }
 
-    public function renderHome(PaginatedHomeContext $home, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, string $template = '@Staccato/home.html.twig'): string
+    /**
+     * @param list<string> $stylesheets file names copied into assets/staccato/
+     */
+    public function renderHome(PaginatedHomeContext $home, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, array $stylesheets = [], string $template = '@Staccato/home.html.twig'): string
     {
         return $this->twig->render($template, [
             'home' => $home,
@@ -34,6 +41,7 @@ final readonly class PageRenderer
             'footerText' => $footerText,
             'includeDefaultStyles' => $includeDefaultStyles,
             'includeHighlighterStyles' => $includeHighlighterStyles,
+            'stylesheets' => $stylesheets,
         ]);
     }
 
@@ -62,13 +70,17 @@ final readonly class PageRenderer
         ]);
     }
 
-    public function renderNotFound(string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, string $template = '@Staccato/404.html.twig'): string
+    /**
+     * @param list<string> $stylesheets file names copied into assets/staccato/
+     */
+    public function renderNotFound(string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, array $stylesheets = [], string $template = '@Staccato/404.html.twig'): string
     {
         return $this->twig->render($template, [
             'siteTitle' => $siteTitle,
             'footerText' => $footerText,
             'includeDefaultStyles' => $includeDefaultStyles,
             'includeHighlighterStyles' => $includeHighlighterStyles,
+            'stylesheets' => $stylesheets,
         ]);
     }
 }

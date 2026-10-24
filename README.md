@@ -62,7 +62,7 @@ All keys are optional and live under the `staccato` root key:
 | `articles_per_page` | positive integer | `10` |
 | `footer_text` | string | `Built with Staccato` |
 | `include_default_styles` | boolean | `true` |
-| `extra_default_styles` | array<string> | `[]` |
+| `stylesheets` | array<string> | `[]` |
 | `highlighter_css` | string | `null` |
 
 ## Customizing templates
@@ -77,17 +77,35 @@ templates/bundles/StaccatoBundle/page.html.twig
 
 This file takes priority over the bundle's own `page.html.twig`, while every other default template keeps working unchanged. Override `base.html.twig` to change the overall layout, or override individual page templates to change just their content structure.
 
-## Default styling
+## Defaul## Styling and themes
 
-The bundle ships a small, dependency-free stylesheet (no Node/Tailwind build step) and copies it into `build/assets/staccato/staccato.css` on every build, referenced automatically by the default `base.html.twig`. 
+The bundle ships a small, dependency-free default theme (no Node/Tailwind build step). On every build it is copied to `build/assets/staccato/staccato.css` and linked from the default `base.html.twig`, so a new site is styled out of the box.
 
-You can also:
-- Supply additional default styles via `extra_default_styles` (a list of paths relative to `public/`).
-- Supply a highlighter stylesheet via `highlighter_css` (a path to the CSS file, absolute or relative to your project root, e.g. `vendor/tempest/highlight/src/Themes/Css/github-light.css`). It is copied to `build/assets/staccato/highlighter.css` and linked from the default `base.html.twig`; when unset, nothing is copied or linked.
+Three options control the stylesheets, independently of each other:
 
-Set `include_default_styles: false` in your `staccato` config to opt out — the stylesheet is then neither copied nor linked, and you can supply your own via an overridden `base.html.twig` plus your own `assets/`.
+- `include_default_styles` (default `true`) — copy and link the bundled `staccato.css`.
+- `stylesheets` — your own CSS files (paths absolute or relative to your project root). Each is copied to `build/assets/staccato/<file name>` and linked after `staccato.css` and the highlighter stylesheet, so it can override them. File names must be unique and must not be `staccato.css` or `highlighter.css`.
+- `highlighter_css` — a syntax-highlighting theme for code blocks (path absolute or relative to your project root, e.g. one of the themes shipped in `vendor/tempest/highlight/src/Themes/Css/`). It is copied to `build/assets/staccato/highlighter.css` and linked; when unset, nothing is copied or linked.
 
-## Writing content
+Tweak the default theme by adding your own stylesheet on top of it:
+
+```yaml
+staccato:
+    stylesheets: ['themes/tweaks.css']
+```
+
+Replace the default theme with your own, with no template override needed:
+
+```yaml
+staccato:
+    include_default_styles: false
+    stylesheets: ['themes/my-theme.css']
+    highlighter_css: 'vendor/tempest/highlight/src/Themes/Css/github-light.css'
+```
+
+For full control over the markup, override `base.html.twig` as described in "Customizing templates" above.
+
+g content
 
 Supported Markdown front matter keys:
 

@@ -42,8 +42,10 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $siteConfig = $this->siteConfig;
 
         // Resolved before cleaning so a misconfigured path doesn't leave an emptied build directory behind.
-        $highlighterCssPath = $siteConfig->includeDefaultStyles ? $this->resolveHighlighterCssPath() : null;
+        $highlighterCssPath = $this->resolveHighlighterCssPath();
         $includeHighlighterStyles = null !== $highlighterCssPath;
+        $stylesheetPaths = $this->resolveStylesheetPaths();
+        $stylesheets = array_keys($stylesheetPaths);
 
         if ($clean) {
             $this->filesystem->remove($buildDirectoryPath);
@@ -77,14 +79,14 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $detailOutputPaths = $this->assertNoDuplicateOutputPaths($detailPages, $buildDirectory);
 
         foreach ($detailPages as $page) {
-            $html = $this->pageRenderer->renderPage($page, $siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles, $includeHighlighterStyles);
+            $html = $this->pageRenderer->renderPage($page, $siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $stylesheets);
             $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($page->urlPath, $buildDirectory);
             $absoluteOutputPath = $this->projectDir.'/'.$relativeOutputPath;
             $this->filesystem->mkdir(dirname($absoluteOutputPath));
             $this->filesystem->dumpFile($absoluteOutputPath, $html);
         }
 
-        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $detailOutputPaths);
+        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $stylesheets, $detailOutputPaths);
         $articlePages = $this->sortedArticlePages($detailPages);
 
         $rssXml = $this->pageRenderer->renderRss(
@@ -97,7 +99,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         $this->filesystem->dumpFile(
             $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/404.html',
-            $this->pageRenderer->renderNotFound($siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles, $includeHighlighterStyles),
+            $this->pageRenderer->renderNotFound($siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $stylesheets),
         );
 
         $sitemapUrls = array_values(array_unique(array_merge(
@@ -114,8 +116,8 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         $assetsCopied = $this->copyAssets($assetsDirectory, $buildDirectory);
 
-        if ($siteConfig->includeDefaultStyles) {
-            $this->copyDefaultStyles($buildDirectory, $highlighterCssPath);
+        if ($siteConfig->includeDefaultStyles || null !== $highlighterCssPath || [] !== $stylesheetPaths) {
+            $this->copyStyles($buildDirectory, $siteConfig->includeDefaultStyles, $highlighterCssPath, $stylesheetPaths);
             $assetsCopied = true;
         }
 
@@ -167,7 +169,10 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         return true;
     }
 
-    private function copyDefaultStyles(string $buildDirectory, ?string $highlighterCssPath): void
+    /**
+     * @param array<string, string> $stylesheetPaths target file name => absolute source path
+     */
+    private function copyStyles(string $buildDirectory, bool $includeDefaultStyles, ?string $highlighterCssPath, array $stylesheetPaths): void
     {
         $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
         $targetAssetsPath = $targetBuildDirectory.'/assets/staccato';
@@ -175,17 +180,13 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         // Copy default staccato.css
         $sourceStylesheetPath = $this->defaultAssetsDir.'/css/staccato.css';
-        if (is_file($sourceStylesheetPath)) {
+        if ($includeDefaultStyles && is_file($sourceStylesheetPath)) {
             $this->filesystem->copy($sourceStylesheetPath, $targetAssetsPath.'/staccato.css', true);
         }
 
-        // Copy extra styles
-        foreach ($this->siteConfig->extraDefaultStyles as $extraStyle) {
-            $sourcePath = $this->defaultAssetsDir.'/'.$extraStyle;
-            if (!is_file($sourcePath)) {
-                throw new \InvalidArgumentException('Configured highlighter css file was not found at: '.$this->siteConfig->highlighterCss);
-            }
-            $this->filesystem->copy($sourcePath, $targetAssetsPath.'/'.basename($extraStyle), true);
+        // Copy configured stylesheets
+        foreach ($stylesheetPaths as $fileName => $sourcePath) {
+            $this->filesystem->copy($sourcePath, $targetAssetsPath.'/'.$fileName, true);
         }
 
         // Copy highlighter css
@@ -210,12 +211,40 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     }
 
     /**
+     * @return array<string, string> target file name => absolute source path
+     */
+    private function resolveStylesheetPaths(): array
+    {
+        $paths = [];
+
+        foreach ($this->siteConfig->stylesheets as $stylesheet) {
+            $path = Path::makeAbsolute($stylesheet, $this->projectDir);
+
+            if (!is_file($path)) {
+                throw new \InvalidArgumentException(sprintf('Configured stylesheet file was not found at "%s".', $path));
+            }
+
+            // Every stylesheet is copied flat into assets/staccato/, so file names must not collide.
+            $fileName = basename($path);
+
+            if (in_array($fileName, ['staccato.css', 'highlighter.css'], true) || isset($paths[$fileName])) {
+                throw new \InvalidArgumentException(sprintf('Configured stylesheet "%s" conflicts with another stylesheet named "%s".', $stylesheet, $fileName));
+            }
+
+            $paths[$fileName] = $path;
+        }
+
+        return $paths;
+    }
+
+    /**
      * @param list<Page>            $pages
+     * @param list<string>          $stylesheets
      * @param array<string, string> $existingOutputPaths
      *
      * @return list<string>
      */
-    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, bool $includeDefaultStyles, bool $includeHighlighterStyles, array $existingOutputPaths): array
+    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, bool $includeDefaultStyles, bool $includeHighlighterStyles, array $stylesheets, array $existingOutputPaths): array
     {
         $articles = $this->sortedArticlePages($pages);
 
@@ -251,7 +280,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
                 nextPageUrl: $pageNumber < $totalPages ? '/page/'.($pageNumber + 1).'/' : null,
             );
 
-            $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText, $includeDefaultStyles, $includeHighlighterStyles);
+            $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText, $includeDefaultStyles, $includeHighlighterStyles, $stylesheets);
             $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($urlPath, $buildDirectory);
 
             if (isset($existingOutputPaths[$relativeOutputPath])) {

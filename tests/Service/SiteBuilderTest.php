@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Staccato\Tests\Service;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Staccato\Model\SiteConfig;
@@ -180,6 +181,90 @@ final class SiteBuilderTest extends TestCase
     }
 
     #[Test]
+    public function itCopiesStylesheetsResolvedFromTheProjectDirectory(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        mkdir($this->projectDir.'/themes', 0777, true);
+        file_put_contents($this->projectDir.'/themes/custom.css', '.custom { color: blue; }');
+
+        $builder = $this->createBuilder(stylesheets: ['themes/custom.css']);
+        $builder->build();
+
+        self::assertSame('.custom { color: blue; }', file_get_contents($this->projectDir.'/build/assets/staccato/custom.css'));
+    }
+
+    #[Test]
+    public function itFailsBeforeCleaningWhenAStylesheetIsMissing(): void
+    {
+        mkdir($this->projectDir.'/build', 0777, true);
+        file_put_contents($this->projectDir.'/build/previous.html', 'previous build');
+
+        $builder = $this->createBuilder(stylesheets: ['themes/missing.css']);
+
+        try {
+            $builder->build();
+            self::fail('Expected the build to fail for a missing stylesheet.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertStringContainsString('stylesheet file', $exception->getMessage());
+            self::assertStringContainsString($this->projectDir.'/themes/missing.css', $exception->getMessage());
+        }
+
+        self::assertFileExists($this->projectDir.'/build/previous.html');
+    }
+
+    /**
+     * @return iterable<string, array{list<string>}>
+     */
+    public static function conflictingStylesheets(): iterable
+    {
+        yield 'same file name twice' => [['themes/a/custom.css', 'themes/b/custom.css']];
+        yield 'reserved staccato.css' => [['themes/a/staccato.css']];
+        yield 'reserved highlighter.css' => [['themes/a/highlighter.css']];
+    }
+
+    /**
+     * @param list<string> $stylesheets
+     */
+    #[Test]
+    #[DataProvider('conflictingStylesheets')]
+    public function itRejectsStylesheetsWithConflictingFileNames(array $stylesheets): void
+    {
+        foreach (['a', 'b'] as $directory) {
+            mkdir($this->projectDir.'/themes/'.$directory, 0777, true);
+
+            foreach (['custom.css', 'staccato.css', 'highlighter.css'] as $fileName) {
+                file_put_contents($this->projectDir.'/themes/'.$directory.'/'.$fileName, 'body {}');
+            }
+        }
+
+        $builder = $this->createBuilder(stylesheets: $stylesheets);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('conflicts with another stylesheet');
+
+        $builder->build();
+    }
+
+    #[Test]
+    public function itCopiesOwnStylesheetsWhenDefaultStylesAreDisabled(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        mkdir($this->projectDir.'/themes', 0777, true);
+        file_put_contents($this->projectDir.'/themes/my-theme.css', 'body { color: black; }');
+        file_put_contents($this->projectDir.'/themes/highlight.css', '.hl-keyword { color: red; }');
+
+        $builder = $this->createBuilder(includeDefaultStyles: false, highlighterCss: 'themes/highlight.css', stylesheets: ['themes/my-theme.css']);
+        $result = $builder->build();
+
+        self::assertTrue($result->assetsCopied);
+        self::assertFileDoesNotExist($this->projectDir.'/build/assets/staccato/staccato.css');
+        self::assertFileExists($this->projectDir.'/build/assets/staccato/my-theme.css');
+        self::assertFileExists($this->projectDir.'/build/assets/staccato/highlighter.css');
+    }
+
+    #[Test]
     public function itFailsWhenTwoPagesResolveToTheSameOutputPath(): void
     {
         mkdir($this->projectDir.'/content/articles/about', 0777, true);
@@ -262,7 +347,10 @@ final class SiteBuilderTest extends TestCase
         self::assertFileExists($this->projectDir.'/build/404.html');
     }
 
-    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null): SiteBuilder
+    /**
+     * @param list<string> $stylesheets
+     */
+    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null, array $stylesheets = []): SiteBuilder
     {
         $resolver = new OutputPathResolver();
         $loader = new ContentLoader($this->projectDir, $resolver);
@@ -274,6 +362,7 @@ final class SiteBuilderTest extends TestCase
             articlesPerPage: 10,
             footerText: 'Built with Staccato',
             includeDefaultStyles: $includeDefaultStyles,
+            stylesheets: $stylesheets,
             highlighterCss: $highlighterCss,
         );
         $twig = new Environment(new ArrayLoader([

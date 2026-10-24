@@ -117,6 +117,44 @@ final class DefaultTemplatesTest extends TestCase
     }
 
     #[Test]
+    public function itLinksStylesheetsAfterTheDefaultOnes(): void
+    {
+        $html = $this->twig->render('@Staccato/404.html.twig', [
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+            'includeHighlighterStyles' => true,
+            'stylesheets' => ['custom.css', 'print.css'],
+        ]);
+
+        $positions = array_map(
+            static fn (string $href): int|false => strpos($html, 'href="'.$href.'"'),
+            ['/assets/staccato/staccato.css', '/assets/staccato/highlighter.css', '/assets/staccato/custom.css', '/assets/staccato/print.css'],
+        );
+
+        self::assertNotContains(false, $positions);
+        $sortedPositions = $positions;
+        sort($sortedPositions);
+        self::assertSame($sortedPositions, $positions);
+    }
+
+    #[Test]
+    public function itLinksOwnStylesheetsWhenDefaultStylesAreDisabled(): void
+    {
+        $html = $this->twig->render('@Staccato/404.html.twig', [
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => false,
+            'includeHighlighterStyles' => true,
+            'stylesheets' => ['my-theme.css'],
+        ]);
+
+        self::assertStringNotContainsString('/assets/staccato/staccato.css', $html);
+        self::assertStringContainsString('href="/assets/staccato/highlighter.css"', $html);
+        self::assertStringContainsString('href="/assets/staccato/my-theme.css"', $html);
+    }
+
+    #[Test]
     public function itRendersTheDefaultHomeTemplate(): void
     {
         $home = new PaginatedHomeContext(
