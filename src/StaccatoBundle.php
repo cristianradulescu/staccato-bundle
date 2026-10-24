@@ -29,6 +29,14 @@ final class StaccatoBundle extends AbstractBundle
                         ->thenInvalid('The "staccato.base_url" value "%s" must be a valid URL.')
                     ->end()
                 ->end()
+                ->scalarNode('language')
+                    ->cannotBeEmpty()
+                    ->defaultValue('en')
+                    ->validate()
+                        ->ifTrue(static fn (string $value): bool => 1 !== preg_match('/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/', $value))
+                        ->thenInvalid('The "staccato.language" value "%s" must be a language tag such as "en" or "pt-BR".')
+                    ->end()
+                ->end()
                 ->scalarNode('description')
                     ->cannotBeEmpty()
                     ->defaultValue('Static site generated with Staccato.')
@@ -94,6 +102,7 @@ final class StaccatoBundle extends AbstractBundle
                 $config['content_dir'],
                 $config['build_dir'],
                 $config['assets_dir'],
+                $config['language'],
             ]);
     }
 

@@ -26,11 +26,41 @@ final class StaccatoExtensionTest extends TestCase
         yield 'path without leading slash' => ['https://example.test/repo', 'about/', '/repo/about/'];
     }
 
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function urls(): iterable
+    {
+        yield 'root site, homepage' => ['https://example.test', '/', 'https://example.test/'];
+        yield 'root site, page' => ['https://example.test', '/about/', 'https://example.test/about/'];
+        yield 'sub-path site, page' => ['https://example.test/repo', '/about/', 'https://example.test/repo/about/'];
+    }
+
+    #[Test]
+    #[DataProvider('urls')]
+    public function itBuildsAbsoluteUrlsUnderTheBaseUrl(string $baseUrl, string $path, string $expected): void
+    {
+        self::assertSame($expected, $this->createExtension($baseUrl)->url($path));
+    }
+
+    #[Test]
+    public function itExposesTheSiteConfigAsAGlobal(): void
+    {
+        $extension = $this->createExtension('https://example.test');
+
+        self::assertSame('https://example.test', $extension->getGlobals()['staccato']->baseUrl);
+    }
+
     #[Test]
     #[DataProvider('paths')]
     public function itPrefixesPathsWithTheBasePathOfTheBaseUrl(string $baseUrl, string $path, string $expected): void
     {
-        $extension = new StaccatoExtension(new SiteConfig(
+        self::assertSame($expected, $this->createExtension($baseUrl)->path($path));
+    }
+
+    private function createExtension(string $baseUrl): StaccatoExtension
+    {
+        return new StaccatoExtension(new SiteConfig(
             title: 'Test Site',
             baseUrl: $baseUrl,
             description: 'Test site description',
@@ -38,7 +68,5 @@ final class StaccatoExtensionTest extends TestCase
             footerText: 'Built with Staccato',
             includeDefaultStyles: true,
         ));
-
-        self::assertSame($expected, $extension->path($path));
     }
 }

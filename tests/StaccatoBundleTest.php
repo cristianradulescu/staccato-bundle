@@ -38,6 +38,7 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame('content', $siteConfig->contentDirectory);
         self::assertSame('build', $siteConfig->buildDirectory);
         self::assertSame('assets', $siteConfig->assetsDirectory);
+        self::assertSame('en', $siteConfig->language);
 
         $kernel->shutdown();
     }
@@ -57,6 +58,7 @@ final class StaccatoBundleTest extends TestCase
             'content_dir' => 'site/pages/',
             'build_dir' => 'public_html',
             'assets_dir' => 'site\\static',
+            'language' => 'pt-BR',
         ]);
         $kernel->boot();
 
@@ -73,8 +75,22 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame('site/pages', $siteConfig->contentDirectory);
         self::assertSame('public_html', $siteConfig->buildDirectory);
         self::assertSame('site/static', $siteConfig->assetsDirectory);
+        self::assertSame('pt-BR', $siteConfig->language);
 
         $kernel->shutdown();
+    }
+
+    #[Test]
+    public function itRejectsAnInvalidLanguage(): void
+    {
+        $kernel = new TestKernel('site_config_invalid_language', [
+            'language' => 'english please',
+        ]);
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('must be a language tag');
+
+        $kernel->boot();
     }
 
     #[Test]

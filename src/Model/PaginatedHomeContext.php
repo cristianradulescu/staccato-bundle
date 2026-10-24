@@ -15,6 +15,7 @@ final readonly class PaginatedHomeContext
         public int $totalPages,
         public ?string $previousPageUrl,
         public ?string $nextPageUrl,
+        public string $urlPath,
     ) {
     }
 }

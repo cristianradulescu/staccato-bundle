@@ -400,6 +400,8 @@ final class SiteBuilderTest extends TestCase
         self::assertSame(10, substr_count((string) file_get_contents($this->projectDir.'/build/page/2/index.html'), 'Read more -&gt;'));
         self::assertSame(10, substr_count((string) file_get_contents($this->projectDir.'/build/page/3/index.html'), 'Read more -&gt;'));
         self::assertSame(5, substr_count((string) file_get_contents($this->projectDir.'/build/page/4/index.html'), 'Read more -&gt;'));
+        self::assertStringContainsString('<link rel="canonical" href="/">', (string) file_get_contents($this->projectDir.'/build/index.html'));
+        self::assertStringContainsString('<link rel="canonical" href="/page/3/">', (string) file_get_contents($this->projectDir.'/build/page/3/index.html'));
     }
 
     #[Test]
@@ -442,7 +444,7 @@ final class SiteBuilderTest extends TestCase
         );
         $twig = new Environment(new ArrayLoader([
             '@Staccato/page.html.twig' => '<html><body><h1>{{ page.title }}</h1>{{ page.html|raw }}</body></html>',
-            '@Staccato/home.html.twig' => '<html><body>{% for article in home.articles %}<a href="{{ article.urlPath }}">Read more -&gt;</a>{% endfor %}{% if home.totalPages > 1 %}page {{ home.currentPage }} of {{ home.totalPages }}{% endif %}</body></html>',
+            '@Staccato/home.html.twig' => '<html><body>{% for article in home.articles %}<a href="{{ article.urlPath }}">Read more -&gt;</a>{% endfor %}{% if home.totalPages > 1 %}page {{ home.currentPage }} of {{ home.totalPages }}{% endif %}<link rel="canonical" href="{{ home.urlPath }}"></body></html>',
             '@Staccato/rss.xml.twig' => '<rss version="2.0">{% for article in articles %}<item><title>{{ article.title }}</title></item>{% endfor %}</rss>',
             '@Staccato/sitemap.xml.twig' => '<urlset>{% for path in urls %}<url><loc>{{ baseUrl }}{{ path }}</loc></url>{% endfor %}</urlset>',
             '@Staccato/404.html.twig' => '<html><body>404</body></html>',

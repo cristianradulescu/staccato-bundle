@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ staccato.language }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ siteTitle }}{% endblock %}</title>
+    <meta name="description" content="{% block description %}{{ staccato.description }}{% endblock %}">
+    {% block canonical %}{% endblock %}
+    <link rel="alternate" type="application/rss+xml" title="{{ siteTitle }}" href="{{ staccato_url('/rss.xml') }}">
     {% if includeDefaultStyles %}
     <link rel="stylesheet" href="{{ staccato_path('/assets/staccato/staccato.css') }}">
     {% endif %}

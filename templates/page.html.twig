@@ -2,6 +2,12 @@
 
 {% block title %}{{ page.title }} · {{ siteTitle }}{% endblock %}
 
+{% block description %}{{ page.excerpt ?: staccato.description }}{% endblock %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ staccato_url(page.urlPath) }}">
+{% endblock %}
+
 {% block content %}
     <article class="page">
         <h1 class="page-title">{{ page.title }}</h1>

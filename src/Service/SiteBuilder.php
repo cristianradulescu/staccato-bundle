@@ -275,6 +275,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
                 totalPages: $totalPages,
                 previousPageUrl: $pageNumber > 1 ? $this->homeUrlPath($pageNumber - 1) : null,
                 nextPageUrl: $pageNumber < $totalPages ? $this->homeUrlPath($pageNumber + 1) : null,
+                urlPath: $urlPath,
             );
 
             $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText, $includeDefaultStyles, $includeHighlighterStyles, $stylesheets);

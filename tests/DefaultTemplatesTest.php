@@ -170,6 +170,7 @@ final class DefaultTemplatesTest extends TestCase
             totalPages: 2,
             previousPageUrl: null,
             nextPageUrl: '/page/2/',
+            urlPath: '/',
         );
 
         $html = $this->twig->render('@Staccato/home.html.twig', [
@@ -210,6 +211,7 @@ final class DefaultTemplatesTest extends TestCase
             totalPages: 3,
             previousPageUrl: '/',
             nextPageUrl: '/page/3/',
+            urlPath: '/page/2/',
         );
 
         $html = $twig->render('@Staccato/home.html.twig', [
@@ -228,6 +230,90 @@ final class DefaultTemplatesTest extends TestCase
         }
 
         self::assertDoesNotMatchRegularExpression('#href="/(?!repo/)#', $html);
+    }
+
+    #[Test]
+    public function itRendersHeadMetadataForPages(): void
+    {
+        $html = $this->twig->render('@Staccato/page.html.twig', [
+            'page' => $this->createPage(excerpt: 'Short "summary" & more'),
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<html lang="en">', $html);
+        self::assertStringContainsString('<meta name="description" content="Short &quot;summary&quot; &amp; more">', $html);
+        self::assertStringContainsString('<link rel="canonical" href="http://localhost/about/">', $html);
+        self::assertStringContainsString('<link rel="alternate" type="application/rss+xml" title="My Site" href="http://localhost/rss.xml">', $html);
+    }
+
+    #[Test]
+    public function itFallsBackToTheSiteDescriptionForPagesWithoutExcerpt(): void
+    {
+        $html = $this->twig->render('@Staccato/page.html.twig', [
+            'page' => $this->createPage(excerpt: ''),
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<meta name="description" content="Static site generated with Staccato.">', $html);
+    }
+
+    #[Test]
+    public function itRendersTheCanonicalUrlOfPaginatedHomePages(): void
+    {
+        $home = new PaginatedHomeContext(
+            articles: [],
+            currentPage: 2,
+            totalPages: 2,
+            previousPageUrl: '/',
+            nextPageUrl: null,
+            urlPath: '/page/2/',
+        );
+
+        $html = $this->twig->render('@Staccato/home.html.twig', [
+            'home' => $home,
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<link rel="canonical" href="http://localhost/page/2/">', $html);
+        self::assertStringContainsString('<meta name="description" content="Static site generated with Staccato.">', $html);
+    }
+
+    #[Test]
+    public function itUsesTheConfiguredLanguage(): void
+    {
+        $kernel = new TestKernel('default_templates_language', ['language' => 'pt-BR']);
+        $kernel->boot();
+
+        /** @var ContainerInterface $testContainer */
+        $testContainer = $kernel->getContainer()->get('test.service_container');
+
+        /** @var Environment $twig */
+        $twig = $testContainer->get(Environment::class);
+
+        $html = $twig->render('@Staccato/404.html.twig', [
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+        $xml = $twig->render('@Staccato/rss.xml.twig', [
+            'articles' => [],
+            'siteTitle' => 'My Site',
+            'siteDescription' => 'Description',
+            'baseUrl' => 'https://example.test',
+            'generatedAt' => new \DateTimeImmutable('2026-01-02'),
+        ]);
+
+        $kernel->shutdown();
+
+        self::assertStringContainsString('<html lang="pt-BR">', $html);
+        self::assertStringNotContainsString('rel="canonical"', $html);
+        self::assertStringContainsString('<language>pt-BR</language>', $xml);
     }
 
     #[Test]
@@ -279,5 +365,19 @@ final class DefaultTemplatesTest extends TestCase
 
         self::assertStringContainsString('<loc>https://example.test/</loc>', $xml);
         self::assertStringContainsString('<loc>https://example.test/about/</loc>', $xml);
+    }
+
+    private function createPage(string $excerpt): Page
+    {
+        return new Page(
+            sourcePath: 'about.md',
+            title: 'About',
+            slug: 'about',
+            publishedAt: null,
+            excerpt: $excerpt,
+            draft: false,
+            html: '<p>Hello.</p>',
+            urlPath: '/about/',
+        );
     }
 }

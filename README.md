@@ -59,6 +59,7 @@ All keys are optional and live under the `staccato` root key:
 | `title` | string | `Staccato` |
 | `base_url` | absolute URL | `http://localhost` |
 | `description` | string | `Static site generated with Staccato.` |
+| `language` | language tag (e.g. `en`, `pt-BR`) | `en` |
 | `articles_per_page` | positive integer | `10` |
 | `footer_text` | string | `Built with Staccato` |
 | `include_default_styles` | boolean | `true` |
@@ -84,7 +85,13 @@ templates/bundles/StaccatoBundle/page.html.twig
 
 This file takes priority over the bundle's own `page.html.twig`, while every other default template keeps working unchanged. Override `base.html.twig` to change the overall layout, or override individual page templates to change just their content structure.
 
-In your own templates, wrap internal links and asset paths in `staccato_path()` (e.g. `{{ staccato_path(article.urlPath) }}`, `{{ staccato_path('/assets/logo.png') }}`) so they keep working when the site is served from a sub-path — see "Hosting under a sub-path" below.
+Helpers available in every template:
+
+- `staccato_path(path)` — a site-relative link or asset path (`{{ staccato_path(article.urlPath) }}`, `{{ staccato_path('/assets/logo.png') }}`). Use it for every internal `href`/`src` so links keep working when the site is served from a sub-path — see "Hosting under a sub-path" below.
+- `staccato_url(path)` — the absolute URL under `base_url` (`{{ staccato_url(page.urlPath) }}`), for canonical links, feeds and social metadata.
+- `staccato` — the site configuration (`{{ staccato.title }}`, `{{ staccato.description }}`, `{{ staccato.language }}`, `{{ staccato.baseUrl }}`, ...).
+
+The default `base.html.twig` renders `<html lang>` from `language`, a `<meta name="description">`, an RSS `<link rel="alternate">`, and exposes two blocks for page-specific head metadata: `description` (defaults to the site description; pages use their excerpt) and `canonical` (pages and homepage listings render an absolute `<link rel="canonical">`).
 
 ## Hosting under a sub-path
 
