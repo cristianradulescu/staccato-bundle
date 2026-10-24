@@ -265,6 +265,58 @@ final class SiteBuilderTest extends TestCase
         self::assertFileExists($this->projectDir.'/build/assets/staccato/highlighter.css');
     }
 
+    /**
+     * @return iterable<string, array{array<string, string>}>
+     */
+    public static function invalidContent(): iterable
+    {
+        yield 'invalid front matter' => [['articles/broken.md' => "---\ntitle: [invalid\n---\nbody"]];
+        yield 'index file' => [['index.md' => '# Home']];
+        yield 'duplicate output path' => [[
+            'articles/about.md' => '# About',
+            'articles/about-us.md' => "---\nslug: about\n---\n# About Us",
+        ]];
+
+        $paginationConflict = ['page/2.md' => '# Reserved by pagination'];
+
+        for ($index = 1; $index <= 11; ++$index) {
+            $paginationConflict[sprintf('articles/article-%02d.md', $index)] = sprintf('# Article %02d', $index);
+        }
+
+        yield 'home pagination conflict' => [$paginationConflict];
+    }
+
+    /**
+     * @param array<string, string> $files content-relative path => contents
+     */
+    #[Test]
+    #[DataProvider('invalidContent')]
+    public function itKeepsThePreviousBuildWhenContentIsInvalid(array $files): void
+    {
+        mkdir($this->projectDir.'/build', 0777, true);
+        file_put_contents($this->projectDir.'/build/previous.html', 'previous build');
+
+        foreach ($files as $path => $contents) {
+            $absolutePath = $this->projectDir.'/content/'.$path;
+
+            if (!is_dir(dirname($absolutePath))) {
+                mkdir(dirname($absolutePath), 0777, true);
+            }
+
+            file_put_contents($absolutePath, $contents);
+        }
+
+        $builder = $this->createBuilder();
+
+        try {
+            $builder->build();
+            self::fail('Expected the build to fail for invalid content.');
+        } catch (\RuntimeException) {
+        }
+
+        self::assertFileExists($this->projectDir.'/build/previous.html');
+    }
+
     #[Test]
     public function itFailsWhenTwoPagesResolveToTheSameOutputPath(): void
     {

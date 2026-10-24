@@ -41,17 +41,12 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $buildDirectoryPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
         $siteConfig = $this->siteConfig;
 
-        // Resolved before cleaning so a misconfigured path doesn't leave an emptied build directory behind.
+        // Configuration and content are loaded and validated before cleaning, so a build that
+        // fails on them leaves the previous output in place instead of an emptied build directory.
         $highlighterCssPath = $this->resolveHighlighterCssPath();
         $includeHighlighterStyles = null !== $highlighterCssPath;
         $stylesheetPaths = $this->resolveStylesheetPaths();
         $stylesheets = array_keys($stylesheetPaths);
-
-        if ($clean) {
-            $this->filesystem->remove($buildDirectoryPath);
-        }
-
-        $this->filesystem->mkdir($buildDirectoryPath);
 
         $sourceContentDirectory = $useFixtures
             ? $this->fixtureContentGenerator->generate()
@@ -72,6 +67,13 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         }
 
         $detailOutputPaths = $this->assertNoDuplicateOutputPaths($detailPages, $buildDirectory);
+        $this->assertNoHomePaginationConflicts($detailPages, $buildDirectory, $siteConfig->articlesPerPage, $detailOutputPaths);
+
+        if ($clean) {
+            $this->filesystem->remove($buildDirectoryPath);
+        }
+
+        $this->filesystem->mkdir($buildDirectoryPath);
 
         foreach ($detailPages as $page) {
             $html = $this->pageRenderer->renderPage($page, $siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $stylesheets);
@@ -81,7 +83,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             $this->filesystem->dumpFile($absoluteOutputPath, $html);
         }
 
-        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $stylesheets, $detailOutputPaths);
+        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $stylesheets);
         $articlePages = $this->sortedArticlePages($detailPages);
 
         $rssXml = $this->pageRenderer->renderRss(
@@ -233,13 +235,12 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     }
 
     /**
-     * @param list<Page>            $pages
-     * @param list<string>          $stylesheets
-     * @param array<string, string> $existingOutputPaths
+     * @param list<Page>   $pages
+     * @param list<string> $stylesheets
      *
      * @return list<string>
      */
-    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, bool $includeDefaultStyles, bool $includeHighlighterStyles, array $stylesheets, array $existingOutputPaths): array
+    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, bool $includeDefaultStyles, bool $includeHighlighterStyles, array $stylesheets): array
     {
         $articles = $this->sortedArticlePages($pages);
 
@@ -264,30 +265,47 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         foreach ($chunks as $index => $chunk) {
             $pageNumber = $index + 1;
-            $urlPath = 1 === $pageNumber ? '/' : '/page/'.$pageNumber.'/';
+            $urlPath = $this->homeUrlPath($pageNumber);
             $homeUrls[] = $urlPath;
 
             $context = new PaginatedHomeContext(
                 articles: $chunk,
                 currentPage: $pageNumber,
                 totalPages: $totalPages,
-                previousPageUrl: $pageNumber > 1 ? (2 === $pageNumber ? '/' : '/page/'.($pageNumber - 1).'/') : null,
-                nextPageUrl: $pageNumber < $totalPages ? '/page/'.($pageNumber + 1).'/' : null,
+                previousPageUrl: $pageNumber > 1 ? $this->homeUrlPath($pageNumber - 1) : null,
+                nextPageUrl: $pageNumber < $totalPages ? $this->homeUrlPath($pageNumber + 1) : null,
             );
 
             $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText, $includeDefaultStyles, $includeHighlighterStyles, $stylesheets);
             $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($urlPath, $buildDirectory);
-
-            if (isset($existingOutputPaths[$relativeOutputPath])) {
-                throw new \RuntimeException(sprintf('Home pagination path "%s" conflicts with content file "%s".', $relativeOutputPath, $existingOutputPaths[$relativeOutputPath]));
-            }
-
             $absoluteOutputPath = $this->projectDir.'/'.$relativeOutputPath;
             $this->filesystem->mkdir(dirname($absoluteOutputPath));
             $this->filesystem->dumpFile($absoluteOutputPath, $html);
         }
 
         return $homeUrls;
+    }
+
+    /**
+     * @param list<Page>            $pages
+     * @param array<string, string> $existingOutputPaths
+     */
+    private function assertNoHomePaginationConflicts(array $pages, string $buildDirectory, int $articlesPerPage, array $existingOutputPaths): void
+    {
+        $totalPages = max(1, (int) ceil(count($this->sortedArticlePages($pages)) / max(1, $articlesPerPage)));
+
+        for ($pageNumber = 1; $pageNumber <= $totalPages; ++$pageNumber) {
+            $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($this->homeUrlPath($pageNumber), $buildDirectory);
+
+            if (isset($existingOutputPaths[$relativeOutputPath])) {
+                throw new \RuntimeException(sprintf('Home pagination path "%s" conflicts with content file "%s".', $relativeOutputPath, $existingOutputPaths[$relativeOutputPath]));
+            }
+        }
+    }
+
+    private function homeUrlPath(int $pageNumber): string
+    {
+        return 1 === $pageNumber ? '/' : '/page/'.$pageNumber.'/';
     }
 
     /**
