@@ -109,7 +109,7 @@ Two things to keep in mind:
 - Links written by hand inside Markdown content are not rewritten. Use relative links (`../other-article/`) or include the sub-path yourself.
 - With a sub-path `base_url`, previewing `build/` from a local web server's root breaks links. Serve it under the same sub-path, or set the sub-path `base_url` only for the environment you deploy (e.g. in `config/packages/prod/staccato.yaml`).
 
-## Defaul## Styling and themes
+## Styling and themes
 
 The bundle ships a small, dependency-free default theme (no Node/Tailwind build step). On every build it is copied to `build/assets/staccato/staccato.css` and linked from the default `base.html.twig`, so a new site is styled out of the box.
 
@@ -137,7 +137,7 @@ staccato:
 
 For full control over the markup, override `base.html.twig` as described in "Customizing templates" above.
 
-g content
+## Writing content
 
 Supported Markdown front matter keys:
 
@@ -153,6 +153,8 @@ Notes:
 - To give a directory its own page, add a sibling file: `content/docs.md` -> `/docs/`, next to `content/docs/setup.md` -> `/docs/setup/`.
 - `index.md` files are not supported and fail the build with a hint on how to rename them. The homepage `/` is always generated from `content/articles/`, so a `slug` resolving to `/` fails the build too.
 - Homepage listing only includes files from `content/articles/`.
+
+Markdown is rendered with [`tempest/markdown`](https://github.com/tempestphp/markdown). Fenced code blocks with a language (```` ```php ````) are syntax-highlighted — pick a theme with `highlighter_css` — and headings get `id` attributes, so `#anchor` links work. When `excerpt` is missing, it is derived from the first ~220 characters of the page's text.
 
 ## `site:build` command
 
@@ -194,4 +196,4 @@ Assets are mirrored from `assets/` to `build/assets/`. The default stylesheet (u
 - `composer test`
 - `composer qa` (runs all of the above)
 
-Tests boot a minimal Symfony test kernel (`tests/Fixtures/TestKernel.php`) registering `FrameworkBundle` + `StaccatoBundle` to exercise the bundle's DI wiring, alongside plain unit tests for the content-loading/build services.
+Tests boot a minimal Symfony test kernel (`tests/Fixtures/TestKernel.php`) registering `FrameworkBundle` + `TwigBundle` + `StaccatoBundle` to exercise the bundle's configuration and DI wiring and to render the default templates end-to-end, alongside plain unit tests for the content-loading and build services.
