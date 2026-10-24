@@ -143,6 +143,48 @@ final class ContentLoaderTest extends TestCase
         $loader->loadPages();
     }
 
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function frontMatterVariants(): iterable
+    {
+        yield 'windows line endings' => ["---\r\ntitle: Parsed\r\n---\r\n# Body\r\n", 'Parsed', '<h1 id="body">Body</h1>'];
+        yield 'old mac line endings' => ["---\rtitle: Parsed\r---\r# Body\r", 'Parsed', '<h1 id="body">Body</h1>'];
+        yield 'utf-8 byte order mark' => ["\u{FEFF}---\ntitle: Parsed\n---\n# Body\n", 'Parsed', '<h1 id="body">Body</h1>'];
+        yield 'trailing whitespace on delimiters' => ["--- \t\ntitle: Parsed\n---  \n# Body\n", 'Parsed', '<h1 id="body">Body</h1>'];
+        yield 'closing delimiter at end of file' => ["---\ntitle: Parsed\n---", 'Parsed', ''];
+        yield 'empty front matter' => ["---\n---\n# Body\n", 'Variant', '<h1 id="body">Body</h1>'];
+    }
+
+    #[Test]
+    #[DataProvider('frontMatterVariants')]
+    public function itParsesFrontMatterVariants(string $source, string $expectedTitle, string $expectedHtml): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/variant.md', $source);
+
+        $loader = $this->createLoader();
+        $pages = $loader->loadPages();
+
+        self::assertCount(1, $pages);
+        self::assertSame($expectedTitle, $pages[0]->title);
+        self::assertSame($expectedHtml, trim($pages[0]->html));
+    }
+
+    #[Test]
+    public function itThrowsOnMissingClosingFrontMatterDelimiter(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/unclosed.md', "---\ntitle: Unclosed\n# Body\n");
+
+        $loader = $this->createLoader();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid front matter in "unclosed.md": missing closing delimiter.');
+
+        $loader->loadPages();
+    }
+
     #[Test]
     public function itThrowsOnInvalidYamlFrontMatter(): void
     {

@@ -14,7 +14,11 @@ use Tempest\Markdown\Markdown;
 
 final class ContentLoader
 {
-    private const FRONT_MATTER_DELIMITER = '---';
+    private const UTF8_BOM = "\u{FEFF}";
+
+    // A "---" line opens and closes front matter; trailing whitespace is tolerated and the closing line may end the file.
+    private const FRONT_MATTER_OPENING_PATTERN = '/\A---[ \t]*\n/';
+    private const FRONT_MATTER_CLOSING_PATTERN = '/^---[ \t]*(?:\n|\z)/m';
 
     /**
      * @var \Closure(string): string
@@ -84,20 +88,26 @@ final class ContentLoader
      */
     private function extractFrontMatter(string $source, string $sourcePath): array
     {
-        if (!str_starts_with($source, self::FRONT_MATTER_DELIMITER."\n")) {
+        // Normalize editor quirks first: Windows/old Mac line endings and a UTF-8 byte order mark.
+        $source = str_replace(["\r\n", "\r"], "\n", $source);
+
+        if (str_starts_with($source, self::UTF8_BOM)) {
+            $source = substr($source, strlen(self::UTF8_BOM));
+        }
+
+        if (1 !== preg_match(self::FRONT_MATTER_OPENING_PATTERN, $source, $opening)) {
             return [[], $source];
         }
 
-        $closingPos = strpos($source, "\n".self::FRONT_MATTER_DELIMITER."\n", strlen(self::FRONT_MATTER_DELIMITER) + 1);
+        $yamlStart = strlen($opening[0]);
 
-        if (false === $closingPos) {
+        if (1 !== preg_match(self::FRONT_MATTER_CLOSING_PATTERN, $source, $closing, PREG_OFFSET_CAPTURE, $yamlStart)) {
             throw new \RuntimeException(sprintf('Invalid front matter in "%s": missing closing delimiter.', $sourcePath));
         }
 
-        $yamlStart = strlen(self::FRONT_MATTER_DELIMITER) + 1;
+        [$closingDelimiter, $closingPos] = $closing[0];
         $yaml = substr($source, $yamlStart, $closingPos - $yamlStart);
-        $bodyStart = $closingPos + strlen("\n".self::FRONT_MATTER_DELIMITER."\n");
-        $body = substr($source, $bodyStart);
+        $body = substr($source, $closingPos + strlen($closingDelimiter));
 
         if ('' === trim($yaml)) {
             return [[], $body];
