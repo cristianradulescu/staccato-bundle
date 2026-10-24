@@ -61,7 +61,12 @@ final class SiteBuildCommand extends Command
                 useFixtures: $useFixtures,
             );
         } catch (\Throwable $exception) {
-            $io->error($exception->getMessage());
+            // Let the Console application render the full exception (trace and previous exceptions) on -v and above.
+            if ($output->isVerbose()) {
+                throw $exception;
+            }
+
+            $io->error([$exception->getMessage(), 'Run the command with -v to see the full stack trace.']);
 
             return Command::FAILURE;
         }

@@ -12,6 +12,7 @@ use Staccato\Model\SiteBuildResult;
 use Staccato\Model\SiteConfig;
 use Staccato\Service\SiteBuilderInterface;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 final class SiteBuildCommandTest extends TestCase
@@ -98,6 +99,28 @@ final class SiteBuildCommandTest extends TestCase
 
         self::assertSame(Command::FAILURE, $exitCode);
         self::assertStringContainsString('Build failed for test', $tester->getDisplay());
+        self::assertStringContainsString('Run the command with -v to see the full stack trace.', $tester->getDisplay());
+    }
+
+    #[Test]
+    public function itRethrowsTheExceptionWhenVerbose(): void
+    {
+        $exception = new \RuntimeException('Build failed for test');
+
+        $this->siteBuilderMock
+            ->expects(self::once())
+            ->method('build')
+            ->willThrowException($exception);
+
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'dev');
+        $tester = new CommandTester($command);
+
+        try {
+            $tester->execute([], ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]);
+            self::fail('Expected the exception to be rethrown in verbose mode.');
+        } catch (\RuntimeException $thrown) {
+            self::assertSame($exception, $thrown);
+        }
     }
 
     #[Test]
