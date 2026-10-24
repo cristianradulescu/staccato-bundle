@@ -14,13 +14,14 @@
         "php": ">=8.5",
         "ext-ctype": "*",
         "ext-iconv": "*",
-        "symfony/config": "8.1.*",
-        "symfony/console": "8.1.*",
-        "symfony/dependency-injection": "8.1.*",
-        "symfony/filesystem": "8.1.*",
-        "symfony/finder": "8.1.*",
-        "symfony/http-kernel": "8.1.*",
-        "symfony/yaml": "8.1.*",
+        "symfony/config": "^8.1",
+        "symfony/console": "^8.1",
+        "symfony/dependency-injection": "^8.1",
+        "symfony/filesystem": "^8.1",
+        "symfony/finder": "^8.1",
+        "symfony/http-foundation": "^8.1.7",
+        "symfony/http-kernel": "^8.1",
+        "symfony/yaml": "^8.1.6",
         "tempest/highlight": "^2.29",
         "tempest/markdown": "^1.1",
         "twig/twig": "^3.14"
@@ -64,7 +65,7 @@
         "friendsofphp/php-cs-fixer": "^3.95",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^13.1",
-        "symfony/framework-bundle": "8.1.*",
-        "symfony/twig-bundle": "8.1.*"
+        "symfony/framework-bundle": "^8.1",
+        "symfony/twig-bundle": "^8.1"
     }
 }
