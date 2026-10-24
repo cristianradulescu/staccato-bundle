@@ -32,6 +32,7 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame(10, $siteConfig->articlesPerPage);
         self::assertSame('Built with Staccato', $siteConfig->footerText);
         self::assertTrue($siteConfig->includeDefaultStyles);
+        self::assertNull($siteConfig->highlighterCss);
 
         $kernel->shutdown();
     }
@@ -46,6 +47,7 @@ final class StaccatoBundleTest extends TestCase
             'articles_per_page' => 12,
             'footer_text' => 'Built with dev-notes',
             'include_default_styles' => false,
+            'highlighter_css' => 'vendor/tempest/highlight/src/Themes/Css/github-light.css',
         ]);
         $kernel->boot();
 
@@ -57,6 +59,7 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame(12, $siteConfig->articlesPerPage);
         self::assertSame('Built with dev-notes', $siteConfig->footerText);
         self::assertFalse($siteConfig->includeDefaultStyles);
+        self::assertSame('vendor/tempest/highlight/src/Themes/Css/github-light.css', $siteConfig->highlighterCss);
 
         $kernel->shutdown();
     }

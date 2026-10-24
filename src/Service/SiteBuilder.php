@@ -11,6 +11,7 @@ use Staccato\Model\SiteBuildResult;
 use Staccato\Model\SiteConfig;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Filesystem\Path;
 
 final readonly class SiteBuilder implements SiteBuilderInterface
 {
@@ -38,13 +39,17 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     ): SiteBuildResult {
         $startedAt = microtime(true);
         $buildDirectoryPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
+        $siteConfig = $this->siteConfig;
+
+        // Resolved before cleaning so a misconfigured path doesn't leave an emptied build directory behind.
+        $highlighterCssPath = $siteConfig->includeDefaultStyles ? $this->resolveHighlighterCssPath() : null;
+        $includeHighlighterStyles = null !== $highlighterCssPath;
 
         if ($clean) {
             $this->filesystem->remove($buildDirectoryPath);
         }
 
         $this->filesystem->mkdir($buildDirectoryPath);
-        $siteConfig = $this->siteConfig;
 
         $sourceContentDirectory = $useFixtures
             ? $this->fixtureContentGenerator->generate()
@@ -72,14 +77,14 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $detailOutputPaths = $this->assertNoDuplicateOutputPaths($detailPages, $buildDirectory);
 
         foreach ($detailPages as $page) {
-            $html = $this->pageRenderer->renderPage($page, $siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles);
+            $html = $this->pageRenderer->renderPage($page, $siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles, $includeHighlighterStyles);
             $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($page->urlPath, $buildDirectory);
             $absoluteOutputPath = $this->projectDir.'/'.$relativeOutputPath;
             $this->filesystem->mkdir(dirname($absoluteOutputPath));
             $this->filesystem->dumpFile($absoluteOutputPath, $html);
         }
 
-        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $siteConfig->includeDefaultStyles, $detailOutputPaths);
+        $homeUrls = $this->buildHomePages($detailPages, $buildDirectory, $siteConfig->title, $siteConfig->footerText, $siteConfig->articlesPerPage, $siteConfig->includeDefaultStyles, $includeHighlighterStyles, $detailOutputPaths);
         $articlePages = $this->sortedArticlePages($detailPages);
 
         $rssXml = $this->pageRenderer->renderRss(
@@ -92,7 +97,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         $this->filesystem->dumpFile(
             $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/404.html',
-            $this->pageRenderer->renderNotFound($siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles),
+            $this->pageRenderer->renderNotFound($siteConfig->title, $siteConfig->footerText, $siteConfig->includeDefaultStyles, $includeHighlighterStyles),
         );
 
         $sitemapUrls = array_values(array_unique(array_merge(
@@ -110,7 +115,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $assetsCopied = $this->copyAssets($assetsDirectory, $buildDirectory);
 
         if ($siteConfig->includeDefaultStyles) {
-            $this->copyDefaultStyles($buildDirectory);
+            $this->copyDefaultStyles($buildDirectory, $highlighterCssPath);
             $assetsCopied = true;
         }
 
@@ -162,7 +167,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         return true;
     }
 
-    private function copyDefaultStyles(string $buildDirectory): void
+    private function copyDefaultStyles(string $buildDirectory, ?string $highlighterCssPath): void
     {
         $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
         $targetAssetsPath = $targetBuildDirectory.'/assets/staccato';
@@ -184,10 +189,24 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         }
 
         // Copy highlighter css
-        if (null !== $this->siteConfig->highlighterCss && !is_file($this->siteConfig->highlighterCss)) {
-            throw new \InvalidArgumentException('Configured highlighter css file was not found at: '.$this->siteConfig->highlighterCss);
+        if (null !== $highlighterCssPath) {
+            $this->filesystem->copy($highlighterCssPath, $targetAssetsPath.'/highlighter.css', true);
         }
-        $this->filesystem->copy($this->siteConfig->highlighterCss, $targetAssetsPath.'/highlighter.css', true);
+    }
+
+    private function resolveHighlighterCssPath(): ?string
+    {
+        if (null === $this->siteConfig->highlighterCss) {
+            return null;
+        }
+
+        $path = Path::makeAbsolute($this->siteConfig->highlighterCss, $this->projectDir);
+
+        if (!is_file($path)) {
+            throw new \InvalidArgumentException(sprintf('Configured highlighter css file was not found at "%s".', $path));
+        }
+
+        return $path;
     }
 
     /**
@@ -196,7 +215,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
      *
      * @return list<string>
      */
-    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, bool $includeDefaultStyles, array $existingOutputPaths): array
+    private function buildHomePages(array $pages, string $buildDirectory, string $siteTitle, string $footerText, int $articlesPerPage, bool $includeDefaultStyles, bool $includeHighlighterStyles, array $existingOutputPaths): array
     {
         $articles = $this->sortedArticlePages($pages);
 
@@ -232,7 +251,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
                 nextPageUrl: $pageNumber < $totalPages ? '/page/'.($pageNumber + 1).'/' : null,
             );
 
-            $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText, $includeDefaultStyles);
+            $html = $this->pageRenderer->renderHome($context, $siteTitle, $footerText, $includeDefaultStyles, $includeHighlighterStyles);
             $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($urlPath, $buildDirectory);
 
             if (isset($existingOutputPaths[$relativeOutputPath])) {

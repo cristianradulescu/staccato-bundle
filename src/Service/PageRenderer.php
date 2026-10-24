@@ -15,23 +15,25 @@ final readonly class PageRenderer
     ) {
     }
 
-    public function renderPage(Page $page, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, string $template = '@Staccato/page.html.twig'): string
+    public function renderPage(Page $page, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, string $template = '@Staccato/page.html.twig'): string
     {
         return $this->twig->render($template, [
             'page' => $page,
             'siteTitle' => $siteTitle,
             'footerText' => $footerText,
             'includeDefaultStyles' => $includeDefaultStyles,
+            'includeHighlighterStyles' => $includeHighlighterStyles,
         ]);
     }
 
-    public function renderHome(PaginatedHomeContext $home, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, string $template = '@Staccato/home.html.twig'): string
+    public function renderHome(PaginatedHomeContext $home, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, string $template = '@Staccato/home.html.twig'): string
     {
         return $this->twig->render($template, [
             'home' => $home,
             'siteTitle' => $siteTitle,
             'footerText' => $footerText,
             'includeDefaultStyles' => $includeDefaultStyles,
+            'includeHighlighterStyles' => $includeHighlighterStyles,
         ]);
     }
 
@@ -60,12 +62,13 @@ final readonly class PageRenderer
         ]);
     }
 
-    public function renderNotFound(string $siteTitle, string $footerText, bool $includeDefaultStyles = true, string $template = '@Staccato/404.html.twig'): string
+    public function renderNotFound(string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, string $template = '@Staccato/404.html.twig'): string
     {
         return $this->twig->render($template, [
             'siteTitle' => $siteTitle,
             'footerText' => $footerText,
             'includeDefaultStyles' => $includeDefaultStyles,
+            'includeHighlighterStyles' => $includeHighlighterStyles,
         ]);
     }
 }

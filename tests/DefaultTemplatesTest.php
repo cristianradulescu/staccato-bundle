@@ -89,6 +89,34 @@ final class DefaultTemplatesTest extends TestCase
     }
 
     #[Test]
+    public function itLinksTheHighlighterStylesheetOnlyWhenEnabled(): void
+    {
+        $page = new Page(
+            sourcePath: 'about.md',
+            title: 'About',
+            slug: 'about',
+            publishedAt: null,
+            excerpt: '',
+            draft: false,
+            html: '<p>Hello.</p>',
+            urlPath: '/about/',
+        );
+
+        $context = [
+            'page' => $page,
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ];
+
+        $withHighlighter = $this->twig->render('@Staccato/page.html.twig', $context + ['includeHighlighterStyles' => true]);
+        $withoutHighlighter = $this->twig->render('@Staccato/page.html.twig', $context + ['includeHighlighterStyles' => false]);
+
+        self::assertStringContainsString('/assets/staccato/highlighter.css', $withHighlighter);
+        self::assertStringNotContainsString('/assets/staccato/highlighter.css', $withoutHighlighter);
+    }
+
+    #[Test]
     public function itRendersTheDefaultHomeTemplate(): void
     {
         $home = new PaginatedHomeContext(

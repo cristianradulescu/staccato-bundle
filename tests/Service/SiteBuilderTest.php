@@ -134,6 +134,52 @@ final class SiteBuilderTest extends TestCase
     }
 
     #[Test]
+    public function itDoesNotCopyHighlighterStylesWhenNotConfigured(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+
+        $builder = $this->createBuilder();
+        $builder->build();
+
+        self::assertFileExists($this->projectDir.'/build/assets/staccato/staccato.css');
+        self::assertFileDoesNotExist($this->projectDir.'/build/assets/staccato/highlighter.css');
+    }
+
+    #[Test]
+    public function itCopiesHighlighterStylesResolvedFromTheProjectDirectory(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/index.md', '# Home');
+        mkdir($this->projectDir.'/themes', 0777, true);
+        file_put_contents($this->projectDir.'/themes/highlight.css', '.hl-keyword { color: red; }');
+
+        $builder = $this->createBuilder(highlighterCss: 'themes/highlight.css');
+        $builder->build();
+
+        self::assertFileExists($this->projectDir.'/build/assets/staccato/highlighter.css');
+        self::assertSame('.hl-keyword { color: red; }', file_get_contents($this->projectDir.'/build/assets/staccato/highlighter.css'));
+    }
+
+    #[Test]
+    public function itFailsBeforeCleaningWhenHighlighterStylesAreMissing(): void
+    {
+        mkdir($this->projectDir.'/build', 0777, true);
+        file_put_contents($this->projectDir.'/build/previous.html', 'previous build');
+
+        $builder = $this->createBuilder(highlighterCss: 'themes/missing.css');
+
+        try {
+            $builder->build();
+            self::fail('Expected the build to fail for a missing highlighter stylesheet.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertStringContainsString($this->projectDir.'/themes/missing.css', $exception->getMessage());
+        }
+
+        self::assertFileExists($this->projectDir.'/build/previous.html');
+    }
+
+    #[Test]
     public function itFailsWhenTwoPagesResolveToTheSameOutputPath(): void
     {
         mkdir($this->projectDir.'/content/articles/about', 0777, true);
@@ -216,7 +262,7 @@ final class SiteBuilderTest extends TestCase
         self::assertFileExists($this->projectDir.'/build/404.html');
     }
 
-    private function createBuilder(bool $includeDefaultStyles = true): SiteBuilder
+    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null): SiteBuilder
     {
         $resolver = new OutputPathResolver();
         $loader = new ContentLoader($this->projectDir, $resolver);
@@ -228,6 +274,7 @@ final class SiteBuilderTest extends TestCase
             articlesPerPage: 10,
             footerText: 'Built with Staccato',
             includeDefaultStyles: $includeDefaultStyles,
+            highlighterCss: $highlighterCss,
         );
         $twig = new Environment(new ArrayLoader([
             '@Staccato/page.html.twig' => '<html><body><h1>{{ page.title }}</h1>{{ page.html|raw }}</body></html>',

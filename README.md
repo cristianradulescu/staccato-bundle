@@ -83,7 +83,7 @@ The bundle ships a small, dependency-free stylesheet (no Node/Tailwind build ste
 
 You can also:
 - Supply additional default styles via `extra_default_styles` (a list of paths relative to `public/`).
-- Supply a highlighter stylesheet via `highlighter_css` (an absolute path to the CSS file).
+- Supply a highlighter stylesheet via `highlighter_css` (a path to the CSS file, absolute or relative to your project root, e.g. `vendor/tempest/highlight/src/Themes/Css/github-light.css`). It is copied to `build/assets/staccato/highlighter.css` and linked from the default `base.html.twig`; when unset, nothing is copied or linked.
 
 Set `include_default_styles: false` in your `staccato` config to opt out — the stylesheet is then neither copied nor linked, and you can supply your own via an overridden `base.html.twig` plus your own `assets/`.
 
