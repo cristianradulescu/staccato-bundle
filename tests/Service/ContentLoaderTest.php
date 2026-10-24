@@ -185,6 +185,32 @@ final class ContentLoaderTest extends TestCase
         $loader->loadPages();
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function derivedExcerpts(): iterable
+    {
+        yield 'special characters' => ["Tom & Jerry say \"hi\" <3\n\nThe end.", 'Tom & Jerry say "hi" <3 The end.'];
+        yield 'html entities' => ['Fish &amp; chips &lt;tasty&gt;', 'Fish & chips <tasty>'];
+        yield 'whitespace across blocks' => ["# Title\n\nFirst   line\nwrapped.\n\n- one\n- two", 'Title First line wrapped. one two'];
+        yield 'adjacent blocks' => ["Intro.\n```php\n\$a = 1;\n```", 'Intro. $a = 1;'];
+        yield 'long text is truncated' => [str_repeat('word ', 60), rtrim(mb_substr(trim(str_repeat('word ', 60)), 0, 217)).'...'];
+        yield 'empty body' => ['', ''];
+    }
+
+    #[Test]
+    #[DataProvider('derivedExcerpts')]
+    public function itDerivesThePlainTextExcerptFromTheRenderedBody(string $markdown, string $expectedExcerpt): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/excerpt.md', $markdown);
+
+        $loader = $this->createLoader();
+        $pages = $loader->loadPages();
+
+        self::assertSame($expectedExcerpt, $pages[0]->excerpt);
+    }
+
     #[Test]
     public function itThrowsOnInvalidYamlFrontMatter(): void
     {

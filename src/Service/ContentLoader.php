@@ -20,6 +20,8 @@ final class ContentLoader
     private const FRONT_MATTER_OPENING_PATTERN = '/\A---[ \t]*\n/';
     private const FRONT_MATTER_CLOSING_PATTERN = '/^---[ \t]*(?:\n|\z)/m';
 
+    private const BLOCK_ELEMENTS_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td, th, dt, dd, br, hr, div';
+
     /**
      * @var \Closure(string): string
      */
@@ -66,7 +68,8 @@ final class ContentLoader
             $slug = $this->resolveSlug($frontMatter, $relativePath);
             $publishedAt = $this->resolvePublishedAt($frontMatter, $relativePath);
             $draft = $this->resolveDraft($frontMatter, $relativePath);
-            $excerpt = $this->resolveExcerpt($frontMatter, $markdownBody, $relativePath);
+            $html = ($this->markdownToHtml)($markdownBody);
+            $excerpt = $this->resolveExcerpt($frontMatter, $html, $relativePath);
 
             $pages[] = new Page(
                 sourcePath: $relativePath,
@@ -75,7 +78,7 @@ final class ContentLoader
                 publishedAt: $publishedAt,
                 excerpt: $excerpt,
                 draft: $draft,
-                html: ($this->markdownToHtml)($markdownBody),
+                html: $html,
                 urlPath: $this->outputPathResolver->buildUrlPath($slug),
             );
         }
@@ -197,7 +200,7 @@ final class ContentLoader
     /**
      * @param array<string, mixed> $frontMatter
      */
-    private function resolveExcerpt(array $frontMatter, string $markdownBody, string $sourcePath): string
+    private function resolveExcerpt(array $frontMatter, string $html, string $sourcePath): string
     {
         $excerpt = $frontMatter['excerpt'] ?? null;
 
@@ -209,7 +212,7 @@ final class ContentLoader
             return trim($excerpt);
         }
 
-        $plainText = trim(strip_tags((string) ($this->markdownToHtml)($markdownBody)));
+        $plainText = $this->plainTextFromHtml($html);
 
         if ('' === $plainText) {
             return '';
@@ -220,6 +223,30 @@ final class ContentLoader
         }
 
         return rtrim(mb_substr($plainText, 0, 217)).'...';
+    }
+
+    /**
+     * Uses an HTML5 parser rather than strip_tags(), which treats text like "<3" as a tag and drops
+     * everything after it, and leaves entities like "&amp;" encoded.
+     */
+    private function plainTextFromHtml(string $html): string
+    {
+        if ('' === trim($html)) {
+            return '';
+        }
+
+        $document = \Dom\HTMLDocument::createFromString('<!DOCTYPE html><body>'.$html.'</body>', LIBXML_NOERROR);
+
+        if (null === $document->body) {
+            return '';
+        }
+
+        // Block boundaries often have no whitespace between them ("</li><li>"), so mark each one with a space.
+        foreach ($document->body->querySelectorAll(self::BLOCK_ELEMENTS_SELECTOR) as $element) {
+            $element->append(' ');
+        }
+
+        return trim((string) preg_replace('/\s+/u', ' ', $document->body->textContent));
     }
 
     /**
