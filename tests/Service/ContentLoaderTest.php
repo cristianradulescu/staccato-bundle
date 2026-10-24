@@ -54,8 +54,22 @@ final class ContentLoaderTest extends TestCase
         self::assertSame('Short summary', $pages[0]->excerpt);
         self::assertSame('2026-04-01', $pages[0]->publishedAt?->format('Y-m-d'));
         self::assertFalse($pages[0]->draft);
-        self::assertStringContainsString('<h1>Hello</h1>', $pages[0]->html);
+        self::assertStringContainsString('<h1 id="hello">Hello</h1>', $pages[0]->html);
         self::assertStringContainsString('<p>Welcome.</p>', $pages[0]->html);
+    }
+
+    #[Test]
+    public function itHighlightsFencedCodeBlocks(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/code.md', "```php\n\$answer = 42;\n```\n");
+
+        $loader = $this->createLoader();
+        $pages = $loader->loadPages();
+
+        self::assertCount(1, $pages);
+        self::assertStringContainsString('<pre class="language-php">', $pages[0]->html);
+        self::assertStringContainsString('<span class="hl-variable">$answer</span>', $pages[0]->html);
     }
 
     #[Test]

@@ -31,7 +31,6 @@ final class ContentLoader
         );
 
         $this->markdownToHtml = static fn (string $markdown): string => (string) $markdownConverter->parse($markdown);
-
     }
 
     /**
