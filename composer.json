@@ -2,6 +2,13 @@
     "name": "cristianradulescu/staccato-bundle",
     "description": "Symfony bundle that turns Markdown content into a static site.",
     "type": "symfony-bundle",
+    "keywords": [
+        "static-site-generator",
+        "markdown",
+        "blog",
+        "twig",
+        "symfony-bundle"
+    ],
     "license": "MIT",
     "homepage": "https://github.com/cristianradulescu/staccato-bundle",
     "support": {
