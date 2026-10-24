@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-24
+
 ### Added
 - Initial release of `cristianradulescu/staccato-bundle`, a Symfony bundle that turns Markdown content into a static site.
 - `Staccato\StaccatoBundle` (`AbstractBundle`) exposing a validated `staccato:` configuration tree: `title`, `base_url`, `description`, `language`, `articles_per_page`, `footer_text`, `include_default_styles`, `stylesheets`, `highlighter_css`, `content_dir`, `build_dir`, `assets_dir`.
@@ -22,3 +24,6 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 - Optional Faker-based fixture content generation (`FixtureContentGenerator`) for demoing a site without committing real content; requires the suggested `fakerphp/faker` package.
 - `bin/create-blog.sh`, a helper script that creates a new Symfony application with Staccato, sample content and a first build.
 - Quality tooling: PHP CS Fixer, PHPStan (level 7), PHPUnit, and a `composer qa` quality gate.
+
+[Unreleased]: https://github.com/cristianradulescu/staccato-bundle/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/cristianradulescu/staccato-bundle/releases/tag/v0.1.0
