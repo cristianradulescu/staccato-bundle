@@ -7,7 +7,9 @@ This repository is the **engine** — a reusable `cristianradulescu/staccato-bun
 ## Requirements
 
 - PHP 8.5+
-- A Symfony 8 application to install the bundle into (with `symfony/twig-bundle`, so the bundle's default templates are discovered and overridable — see "Customizing templates" below)
+- A Symfony 8.1+ application with `bin/console` to install the bundle into (e.g. one created from `symfony/skeleton`)
+
+`symfony/twig-bundle` is installed as a dependency of the bundle: it renders the default templates and makes them overridable (see "Customizing templates" below).
 
 ## Installation (into a consuming Symfony app)
 
@@ -15,12 +17,13 @@ This repository is the **engine** — a reusable `cristianradulescu/staccato-bun
 composer require cristianradulescu/staccato-bundle
 ```
 
-Register the bundle (if not done automatically by Symfony Flex):
+Register the bundles (if not done automatically by Symfony Flex):
 
 ```php
 // config/bundles.php
 return [
     // ...
+    Symfony\Bundle\TwigBundle\TwigBundle::class => ['all' => true],
     Staccato\StaccatoBundle::class => ['all' => true],
 ];
 ```

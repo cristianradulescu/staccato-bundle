@@ -21,6 +21,7 @@
         "symfony/finder": "^8.1",
         "symfony/http-foundation": "^8.1.7",
         "symfony/http-kernel": "^8.1",
+        "symfony/twig-bundle": "^8.1",
         "symfony/yaml": "^8.1.6",
         "tempest/highlight": "^2.29",
         "tempest/markdown": "^1.1",
@@ -33,7 +34,6 @@
         "sort-packages": true
     },
     "suggest": {
-        "symfony/twig-bundle": "Required to render Staccato's default templates and to allow per-template overrides in your app.",
         "fakerphp/faker": "Required for the site:build --use-fixtures option, which generates demo articles."
     },
     "autoload": {
@@ -65,7 +65,6 @@
         "friendsofphp/php-cs-fixer": "^3.95",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^13.1",
-        "symfony/framework-bundle": "^8.1",
-        "symfony/twig-bundle": "^8.1"
+        "symfony/framework-bundle": "^8.1"
     }
 }
