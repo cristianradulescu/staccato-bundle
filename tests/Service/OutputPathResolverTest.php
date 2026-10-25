@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Staccato\Tests\Service;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Staccato\Service\OutputPathResolver;
@@ -15,6 +16,54 @@ final class OutputPathResolverTest extends TestCase
     protected function setUp(): void
     {
         $this->resolver = new OutputPathResolver();
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function validAliases(): iterable
+    {
+        yield 'mixed case directory' => ['/2022-08-20-Github-pages-with-Jigsaw/', '/2022-08-20-Github-pages-with-Jigsaw/', 'build/2022-08-20-Github-pages-with-Jigsaw/index.html'];
+        yield 'missing trailing slash' => ['/old-post', '/old-post/', 'build/old-post/index.html'];
+        yield 'nested' => ['/blog/2020/old-post/', '/blog/2020/old-post/', 'build/blog/2020/old-post/index.html'];
+        yield 'html file' => ['/2020/01/old-post.html', '/2020/01/old-post.html', 'build/2020/01/old-post.html'];
+        yield 'whitespace and backslashes' => [' \\old\\post\\ ', '/old/post/', 'build/old/post/index.html'];
+        yield 'dots and tildes' => ['/~user/v1.2/', '/~user/v1.2/', 'build/~user/v1.2/index.html'];
+    }
+
+    #[Test]
+    #[DataProvider('validAliases')]
+    public function itNormalizesAliasesAndResolvesTheirOutputPath(string $alias, string $expectedUrlPath, string $expectedOutputPath): void
+    {
+        $urlPath = $this->resolver->normalizeAliasUrlPath($alias, 'post.md');
+
+        self::assertSame($expectedUrlPath, $urlPath);
+        self::assertSame($expectedOutputPath, $this->resolver->resolveAliasOutputPath($urlPath));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function invalidAliases(): iterable
+    {
+        yield 'relative' => ['old-post/', 'must be a URL path starting with "/"'];
+        yield 'absolute URL' => ['https://example.test/old/', 'must be a URL path starting with "/"'];
+        yield 'homepage' => ['/', 'reserved for the generated homepage'];
+        yield 'parent segment' => ['/blog/../etc/', 'may only contain'];
+        yield 'current segment' => ['/blog/./post/', 'may only contain'];
+        yield 'empty segment' => ['/blog//post/', 'may only contain'];
+        yield 'query string' => ['/post/?page=2', 'may only contain'];
+        yield 'space' => ['/old post/', 'may only contain'];
+    }
+
+    #[Test]
+    #[DataProvider('invalidAliases')]
+    public function itRejectsInvalidAliases(string $alias, string $expectedMessage): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage($expectedMessage);
+
+        $this->resolver->normalizeAliasUrlPath($alias, 'post.md');
     }
 
     #[Test]

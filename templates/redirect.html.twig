@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="{{ staccato.language }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ page.title }} · {{ staccato.title }}</title>
+    <link rel="canonical" href="{{ staccato_url(page.urlPath) }}">
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="0; url={{ staccato_path(page.urlPath) }}">
+</head>
+<body>
+    <p>This page has moved to <a href="{{ staccato_path(page.urlPath) }}">{{ page.title }}</a>.</p>
+</body>
+</html>

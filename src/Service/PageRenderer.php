@@ -70,6 +70,13 @@ final readonly class PageRenderer
         ]);
     }
 
+    public function renderRedirect(Page $page, string $template = '@Staccato/redirect.html.twig'): string
+    {
+        return $this->twig->render($template, [
+            'page' => $page,
+        ]);
+    }
+
     /**
      * @param list<string> $stylesheets file names copied into assets/staccato/
      */

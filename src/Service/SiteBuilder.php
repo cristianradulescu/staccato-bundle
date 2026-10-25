@@ -73,9 +73,10 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $detailOutputPaths = $this->assertNoDuplicateOutputPaths($detailPages, $buildDirectory);
         $homeOutputPaths = $this->homeOutputPaths($detailPages, $buildDirectory, $siteConfig->articlesPerPage);
         $this->assertNoHomePaginationConflicts($homeOutputPaths, $detailOutputPaths);
+        $aliasOutputPaths = $this->resolveAliasOutputPaths($detailPages, $buildDirectory, $detailOutputPaths, $homeOutputPaths);
 
         $staticFiles = $this->findStaticFiles($siteConfig->staticDirectory);
-        $this->assertNoStaticFileConflicts($staticFiles, [...array_keys($detailOutputPaths), ...$homeOutputPaths], $buildDirectory);
+        $this->assertNoStaticFileConflicts($staticFiles, [...array_keys($detailOutputPaths), ...$homeOutputPaths, ...array_keys($aliasOutputPaths)], $buildDirectory);
 
         if ($clean) {
             $this->filesystem->remove($buildDirectoryPath);
@@ -119,6 +120,8 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         );
         $this->filesystem->dumpFile($this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/sitemap.xml', $sitemapXml);
 
+        $this->writeRedirects($aliasOutputPaths, [...array_keys($detailOutputPaths), ...$homeOutputPaths], $buildDirectory);
+
         $assetsCopied = $this->copyAssets($assetsDirectory, $buildDirectory);
 
         if ($siteConfig->includeDefaultStyles || null !== $highlighterCssPath || [] !== $stylesheetPaths) {
@@ -138,6 +141,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             assetsCopied: $assetsCopied,
             durationMs: $durationMs,
             staticFilesCopied: count($staticFiles),
+            redirectsGenerated: count($aliasOutputPaths),
         );
     }
 
@@ -329,6 +333,82 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             if (isset($existingOutputPaths[$relativeOutputPath])) {
                 throw new \RuntimeException(sprintf('Home pagination path "%s" conflicts with content file "%s".', $relativeOutputPath, $existingOutputPaths[$relativeOutputPath]));
             }
+        }
+    }
+
+    /**
+     * @param list<Page>            $pages
+     * @param array<string, string> $detailOutputPaths
+     * @param list<string>          $homeOutputPaths
+     *
+     * @return array<string, Page> alias output path => page it redirects to
+     */
+    private function resolveAliasOutputPaths(array $pages, string $buildDirectory, array $detailOutputPaths, array $homeOutputPaths): array
+    {
+        $buildPrefix = $this->normalizeRelativeDirectory($buildDirectory).'/';
+        $reservedPaths = [];
+
+        foreach ($detailOutputPaths as $outputPath => $sourcePath) {
+            $reservedPaths[$outputPath] = sprintf('the page generated from "%s"', $sourcePath);
+        }
+
+        foreach ($homeOutputPaths as $outputPath) {
+            $reservedPaths[$outputPath] = 'the homepage listing';
+        }
+
+        foreach (['rss.xml', 'sitemap.xml', '404.html'] as $fileName) {
+            $reservedPaths[$buildPrefix.$fileName] = sprintf('the generated "%s"', $fileName);
+        }
+
+        $aliasOutputPaths = [];
+
+        foreach ($pages as $page) {
+            foreach ($page->aliases as $alias) {
+                $outputPath = $this->outputPathResolver->resolveAliasOutputPath($alias, $buildDirectory);
+
+                $conflict = match (true) {
+                    isset($reservedPaths[$outputPath]) => $reservedPaths[$outputPath],
+                    isset($aliasOutputPaths[$outputPath]) => sprintf('an alias of "%s"', $aliasOutputPaths[$outputPath]->sourcePath),
+                    str_starts_with($outputPath, $buildPrefix.'assets/') => 'the published assets',
+                    default => null,
+                };
+
+                if (null !== $conflict) {
+                    throw new \RuntimeException(sprintf('Alias "%s" of "%s" conflicts with %s.', $alias, $page->sourcePath, $conflict));
+                }
+
+                $aliasOutputPaths[$outputPath] = $page;
+            }
+        }
+
+        return $aliasOutputPaths;
+    }
+
+    /**
+     * @param array<string, Page> $aliasOutputPaths
+     * @param list<string>        $generatedOutputPaths
+     */
+    private function writeRedirects(array $aliasOutputPaths, array $generatedOutputPaths, string $buildDirectory): void
+    {
+        $buildPrefix = $this->normalizeRelativeDirectory($buildDirectory).'/';
+        $generatedPathsByLowercase = [];
+
+        foreach ([...$generatedOutputPaths, $buildPrefix.'rss.xml', $buildPrefix.'sitemap.xml', $buildPrefix.'404.html'] as $outputPath) {
+            $generatedPathsByLowercase[strtolower($outputPath)] = $outputPath;
+        }
+
+        foreach ($aliasOutputPaths as $outputPath => $page) {
+            $absoluteOutputPath = $this->projectDir.'/'.$outputPath;
+
+            // An alias that differs from a generated file only by case (the usual case after a migration) is
+            // the same file on a case-insensitive filesystem, and writing it would replace the page itself.
+            $sameCasePath = $generatedPathsByLowercase[strtolower($outputPath)] ?? null;
+
+            if (null !== $sameCasePath && is_file($absoluteOutputPath) && fileinode($absoluteOutputPath) === fileinode($this->projectDir.'/'.$sameCasePath)) {
+                throw new \RuntimeException(sprintf('Alias "%s" of "%s" differs from "%s" only by case, and this filesystem does not tell them apart. Build the site on a case-sensitive filesystem (e.g. Linux or CI), or remove the alias.', $outputPath, $page->sourcePath, $sameCasePath));
+            }
+
+            $this->filesystem->dumpFile($absoluteOutputPath, $this->pageRenderer->renderRedirect($page));
         }
     }
 

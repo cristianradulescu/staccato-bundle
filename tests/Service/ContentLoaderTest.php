@@ -234,6 +234,45 @@ final class ContentLoaderTest extends TestCase
     }
 
     #[Test]
+    public function itParsesAliasesFromFrontMatter(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/a-list.md', "---\naliases: ['/Old-Post/', /old.html, /Old-Post]\n---\n# List");
+        file_put_contents($this->projectDir.'/content/b-string.md', "---\naliases: /previous-name\n---\n# String");
+        file_put_contents($this->projectDir.'/content/c-none.md', '# None');
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertSame(['/Old-Post/', '/old.html'], $pages[0]->aliases);
+        self::assertSame(['/previous-name/'], $pages[1]->aliases);
+        self::assertSame([], $pages[2]->aliases);
+        self::assertSame([], $pages[0]->meta);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function invalidAliasFrontMatter(): iterable
+    {
+        yield 'map' => ["aliases:\n  old: /old/", 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
+        yield 'number in list' => ['aliases: [/old/, 42]', 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
+        yield 'relative path' => ['aliases: [old/]', 'Alias "old/" in "post.md" must be a URL path starting with "/".'];
+    }
+
+    #[Test]
+    #[DataProvider('invalidAliasFrontMatter')]
+    public function itRejectsInvalidAliases(string $frontMatter, string $expectedMessage): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\n".$frontMatter."\n---\n# Post");
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage($expectedMessage);
+
+        $this->createLoader()->loadPages();
+    }
+
+    #[Test]
     public function itThrowsOnInvalidYamlFrontMatter(): void
     {
         mkdir($this->projectDir.'/content', 0777, true);

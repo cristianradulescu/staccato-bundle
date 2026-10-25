@@ -91,7 +91,7 @@ The rest of this README uses the default names (`content/`, `build/`, `assets/`)
 
 ## Customizing templates
 
-Staccato ships default templates under the `@Staccato` Twig namespace: `base.html.twig`, `page.html.twig`, `home.html.twig`, `404.html.twig`, `rss.xml.twig`, `sitemap.xml.twig`.
+Staccato ships default templates under the `@Staccato` Twig namespace: `base.html.twig`, `page.html.twig`, `home.html.twig`, `404.html.twig`, `redirect.html.twig`, `rss.xml.twig`, `sitemap.xml.twig`.
 
 To override any single one of them, place a file at the matching path in your own app — Symfony's standard bundle template override convention:
 
@@ -196,6 +196,7 @@ Supported Markdown front matter keys:
 - `date` (string; parseable date)
 - `excerpt` (string)
 - `draft` (boolean)
+- `aliases` (list of URL paths; see "Redirects" below)
 
 Any other key is passed through untouched to templates as `page.meta` (and `article.meta` for items in the homepage listing), so you can add your own:
 
@@ -222,6 +223,24 @@ Notes:
 - To give a directory its own page, add a sibling file: `content/docs.md` -> `/docs/`, next to `content/docs/setup.md` -> `/docs/setup/`.
 - `index.md` files are not supported and fail the build with a hint on how to rename them. The homepage `/` is always generated from `content/articles/`, so a `slug` resolving to `/` fails the build too.
 - Homepage listing only includes files from `content/articles/`.
+
+### Redirects
+
+When a page moves — renamed, or migrated from another generator with different URLs — list its old URLs under `aliases`:
+
+```markdown
+---
+title: GitHub pages with Jigsaw
+aliases: ['/2022-08-20-Github-pages-with-Jigsaw/', /blog/github-pages.html]
+---
+```
+
+Each alias gets a small redirect page (`redirect.html.twig`: a meta refresh to the page, a canonical link to it and `noindex`, so search engines index only the new URL). Aliases are not in the sitemap, and aliases of drafts left out of a build are not written either.
+
+- An alias is a URL path starting with `/`. Unlike slugs it keeps its case and may contain dots, so old mixed-case URLs survive a migration.
+- A path ending in `.html` is written as that file (`/blog/github-pages.html` -> `build/blog/github-pages.html`); anything else is directory-style like page URLs (`/Old-Post` -> `build/Old-Post/index.html`).
+- An alias may not point at `/`, at another page, a homepage listing page, a generated file, anything under `/assets/`, another alias or a static file. Conflicts fail the build before the build directory is cleaned.
+- On a case-insensitive filesystem (macOS and Windows defaults), an alias that differs from its page's URL only by case is the same file as the page; the build fails rather than replace the page with a redirect to itself. Build on Linux or in CI to keep such aliases.
 
 Markdown is rendered with [`tempest/markdown`](https://github.com/tempestphp/markdown). Fenced code blocks with a language (```` ```php ````) are syntax-highlighted — pick a theme with `highlighter_css` — and headings get `id` attributes, so `#anchor` links work. When `excerpt` is missing, it is derived from the first ~220 characters of the page's text.
 

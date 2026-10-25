@@ -53,6 +53,41 @@ final class OutputPathResolver
         return '/'.$slug.'/';
     }
 
+    /**
+     * Normalizes an alias (an old URL of a page) to a URL path. Unlike slugs, aliases keep their case and may
+     * contain dots, so URLs from other generators (/Old-Post/, /2020/01/post.html) can be kept as they were.
+     */
+    public function normalizeAliasUrlPath(string $alias, string $sourcePath): string
+    {
+        $normalized = trim(str_replace('\\', '/', $alias));
+
+        if (!str_starts_with($normalized, '/')) {
+            throw new \RuntimeException(sprintf('Alias "%s" in "%s" must be a URL path starting with "/".', $alias, $sourcePath));
+        }
+
+        $trimmed = trim($normalized, '/');
+
+        if ('' === $trimmed) {
+            throw new \RuntimeException(sprintf('Alias "%s" in "%s" resolves to "/", which is reserved for the generated homepage.', $alias, $sourcePath));
+        }
+
+        foreach (explode('/', $trimmed) as $segment) {
+            if ('.' === $segment || '..' === $segment || 1 !== preg_match('/^[A-Za-z0-9._~-]+$/', $segment)) {
+                throw new \RuntimeException(sprintf('Alias "%s" in "%s" may only contain letters, digits, ".", "_", "~" and "-" between slashes.', $alias, $sourcePath));
+            }
+        }
+
+        // A path ending in .html names the file itself; anything else is a directory-style URL like page URLs.
+        return str_ends_with($trimmed, '.html') ? '/'.$trimmed : '/'.$trimmed.'/';
+    }
+
+    public function resolveAliasOutputPath(string $aliasUrlPath, string $buildDirectory = 'build'): string
+    {
+        $trimmed = trim($aliasUrlPath, '/');
+
+        return $this->normalizeBuildDirectory($buildDirectory).'/'.(str_ends_with($aliasUrlPath, '.html') ? $trimmed : $trimmed.'/index.html');
+    }
+
     public function resolveOutputPath(string $urlPath, string $buildDirectory = 'build'): string
     {
         $normalizedBuildDirectory = $this->normalizeBuildDirectory($buildDirectory);

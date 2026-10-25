@@ -12,6 +12,7 @@ final readonly class SiteBuildResult
         public bool $assetsCopied,
         public int $durationMs,
         public int $staticFilesCopied = 0,
+        public int $redirectsGenerated = 0,
     ) {
     }
 }

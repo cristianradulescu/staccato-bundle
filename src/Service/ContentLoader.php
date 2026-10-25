@@ -21,7 +21,7 @@ final class ContentLoader
     private const FRONT_MATTER_CLOSING_PATTERN = '/^---[ \t]*(?:\n|\z)/m';
 
     // Front matter keys interpreted by the loader; every other key is passed through as Page::$meta.
-    private const RESERVED_FRONT_MATTER_KEYS = ['title', 'slug', 'date', 'excerpt', 'draft'];
+    private const RESERVED_FRONT_MATTER_KEYS = ['title', 'slug', 'date', 'excerpt', 'draft', 'aliases'];
 
     private const BLOCK_ELEMENTS_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td, th, dt, dd, br, hr, div';
 
@@ -84,6 +84,7 @@ final class ContentLoader
                 html: $html,
                 urlPath: $this->outputPathResolver->buildUrlPath($slug),
                 meta: $this->resolveMeta($frontMatter),
+                aliases: $this->resolveAliases($frontMatter, $relativePath),
             );
         }
 
@@ -199,6 +200,36 @@ final class ContentLoader
         } catch (\Exception $exception) {
             throw new \RuntimeException(sprintf('Front matter key "date" in "%s" must be a valid date string.', $sourcePath), previous: $exception);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $frontMatter
+     *
+     * @return list<string>
+     */
+    private function resolveAliases(array $frontMatter, string $sourcePath): array
+    {
+        $aliases = $frontMatter['aliases'] ?? [];
+
+        if (is_string($aliases)) {
+            $aliases = [$aliases];
+        }
+
+        if (!is_array($aliases) || !array_is_list($aliases)) {
+            throw new \RuntimeException(sprintf('Front matter key "aliases" in "%s" must be a list of URL paths.', $sourcePath));
+        }
+
+        $urlPaths = [];
+
+        foreach ($aliases as $alias) {
+            if (!is_string($alias)) {
+                throw new \RuntimeException(sprintf('Front matter key "aliases" in "%s" must be a list of URL paths.', $sourcePath));
+            }
+
+            $urlPaths[] = $this->outputPathResolver->normalizeAliasUrlPath($alias, $sourcePath);
+        }
+
+        return array_values(array_unique($urlPaths));
     }
 
     /**

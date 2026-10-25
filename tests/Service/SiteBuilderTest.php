@@ -131,6 +131,80 @@ final class SiteBuilderTest extends TestCase
     }
 
     #[Test]
+    public function itWritesRedirectStubsForAliases(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/2022-08-20-github-pages.md', "---\naliases: ['/2022-08-20-Github-pages/', /2022/08/github-pages.html]\n---\n# Pages");
+        file_put_contents($this->projectDir.'/content/articles/draft.md', "---\ndraft: true\naliases: [/old-draft/]\n---\n# Draft");
+
+        $result = $this->createBuilder()->build();
+
+        self::assertSame(2, $result->redirectsGenerated);
+        $expectedStub = '<meta http-equiv="refresh" content="0; url=/2022-08-20-github-pages/">';
+        self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/2022-08-20-Github-pages/index.html'));
+        self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/2022/08/github-pages.html'));
+        self::assertStringContainsString('<h1>', (string) file_get_contents($this->projectDir.'/build/2022-08-20-github-pages/index.html'));
+        self::assertDirectoryDoesNotExist($this->projectDir.'/build/old-draft');
+        self::assertStringNotContainsString('Github-pages', (string) file_get_contents($this->projectDir.'/build/sitemap.xml'));
+    }
+
+    /**
+     * @return iterable<string, array{array<string, string>, string}>
+     */
+    public static function conflictingAliases(): iterable
+    {
+        yield 'own page' => [['post.md' => "---\naliases: [/post/]\n---\n# Post"], 'Alias "/post/" of "post.md" conflicts with the page generated from "post.md".'];
+        yield 'other page' => [['about.md' => '# About', 'post.md' => "---\naliases: [/about]\n---\n# Post"], 'Alias "/about/" of "post.md" conflicts with the page generated from "about.md".'];
+        yield 'pagination' => [['post.md' => "---\naliases: [/page/2/]\n---\n# Post"] + self::articles(11), 'Alias "/page/2/" of "post.md" conflicts with the homepage listing.'];
+        yield 'not found page' => [['post.md' => "---\naliases: [/404.html]\n---\n# Post"], 'Alias "/404.html" of "post.md" conflicts with the generated "404.html".'];
+        yield 'index file of the homepage' => [['post.md' => "---\naliases: [/index.html]\n---\n# Post"], 'Alias "/index.html" of "post.md" conflicts with the homepage listing.'];
+        yield 'alias of another page' => [['a.md' => "---\naliases: [/old/]\n---\n# A", 'b.md' => "---\naliases: [/old/]\n---\n# B"], 'Alias "/old/" of "b.md" conflicts with an alias of "a.md".'];
+        yield 'published assets' => [['post.md' => "---\naliases: [/assets/old.html]\n---\n# Post"], 'Alias "/assets/old.html" of "post.md" conflicts with the published assets.'];
+    }
+
+    /**
+     * @param array<string, string> $files
+     */
+    #[Test]
+    #[DataProvider('conflictingAliases')]
+    public function itFailsBeforeCleaningWhenAnAliasConflicts(array $files, string $expectedMessage): void
+    {
+        foreach ($files as $path => $contents) {
+            if (!is_dir(dirname($this->projectDir.'/content/'.$path))) {
+                mkdir(dirname($this->projectDir.'/content/'.$path), 0777, true);
+            }
+
+            file_put_contents($this->projectDir.'/content/'.$path, $contents);
+        }
+
+        mkdir($this->projectDir.'/build', 0777, true);
+        file_put_contents($this->projectDir.'/build/previous.html', 'previous');
+
+        try {
+            $this->createBuilder()->build();
+            self::fail('Expected the build to fail.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame($expectedMessage, $exception->getMessage());
+        }
+
+        self::assertFileExists($this->projectDir.'/build/previous.html');
+    }
+
+    #[Test]
+    public function itFailsWhenAStaticFileConflictsWithAnAlias(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\naliases: [/old.html]\n---\n# Post");
+        mkdir($this->projectDir.'/static', 0777, true);
+        file_put_contents($this->projectDir.'/static/old.html', 'static');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Static file "old.html" conflicts with the generated "old.html"');
+
+        $this->createBuilder()->build();
+    }
+
+    #[Test]
     public function itSkipsDraftPagesByDefault(): void
     {
         mkdir($this->projectDir.'/content', 0777, true);
@@ -597,11 +671,26 @@ final class SiteBuilderTest extends TestCase
             '@Staccato/rss.xml.twig' => '<rss version="2.0">{% for article in articles %}<item><title>{{ article.title }}</title></item>{% endfor %}</rss>',
             '@Staccato/sitemap.xml.twig' => '<urlset>{% for path in urls %}<url><loc>{{ baseUrl }}{{ path }}</loc></url>{% endfor %}</urlset>',
             '@Staccato/404.html.twig' => '<html><body>404</body></html>',
+            '@Staccato/redirect.html.twig' => '<meta http-equiv="refresh" content="0; url={{ page.urlPath }}">',
         ]));
         $renderer = new PageRenderer($twig);
         $fixtureGenerator = new FixtureContentGenerator($this->projectDir, $filesystem);
 
         return new SiteBuilder($this->projectDir, $this->defaultAssetsDir, $filesystem, $siteConfig, $loader, $fixtureGenerator, $resolver, $renderer, $eventDispatcher ?? new EventDispatcher());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function articles(int $count): array
+    {
+        $articles = [];
+
+        for ($index = 1; $index <= $count; ++$index) {
+            $articles[sprintf('articles/article-%02d.md', $index)] = sprintf("---\ndate: 2026-03-%02d\n---\n# Article %02d", $index, $index);
+        }
+
+        return $articles;
     }
 
     private function removeDirectory(string $path): void

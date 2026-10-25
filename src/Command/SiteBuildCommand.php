@@ -81,6 +81,7 @@ final class SiteBuildCommand extends Command
             ['Draft pages skipped' => (string) $result->skippedDraftPages],
             ['Assets copied' => $result->assetsCopied ? 'yes' : 'no'],
             ['Static files copied' => (string) $result->staticFilesCopied],
+            ['Redirects generated' => (string) $result->redirectsGenerated],
             ['Duration' => $result->durationMs.'ms'],
         );
 

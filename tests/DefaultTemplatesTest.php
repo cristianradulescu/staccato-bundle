@@ -490,6 +490,28 @@ final class DefaultTemplatesTest extends TestCase
     }
 
     #[Test]
+    public function itRendersTheDefaultRedirectTemplate(): void
+    {
+        $kernel = new TestKernel('default_templates_redirect', ['base_url' => 'https://example.test/repo/']);
+        $kernel->boot();
+
+        /** @var ContainerInterface $testContainer */
+        $testContainer = $kernel->getContainer()->get('test.service_container');
+
+        /** @var Environment $twig */
+        $twig = $testContainer->get(Environment::class);
+
+        $html = $twig->render('@Staccato/redirect.html.twig', ['page' => $this->createPage(excerpt: '')]);
+
+        $kernel->shutdown();
+
+        self::assertStringContainsString('<link rel="canonical" href="https://example.test/repo/about/">', $html);
+        self::assertStringContainsString('<meta name="robots" content="noindex">', $html);
+        self::assertStringContainsString('<meta http-equiv="refresh" content="0; url=/repo/about/">', $html);
+        self::assertStringContainsString('<a href="/repo/about/">About</a>', $html);
+    }
+
+    #[Test]
     public function itRendersTheDefaultRssTemplate(): void
     {
         $page = new Page(
