@@ -111,6 +111,88 @@ final class SiteBuilderTest extends TestCase
     }
 
     #[Test]
+    public function itCopiesStaticFilesToTheBuildRoot(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
+        mkdir($this->projectDir.'/static/.well-known', 0777, true);
+        file_put_contents($this->projectDir.'/static/favicon.ico', 'icon');
+        file_put_contents($this->projectDir.'/static/robots.txt', 'User-agent: *');
+        file_put_contents($this->projectDir.'/static/.nojekyll', '');
+        file_put_contents($this->projectDir.'/static/.well-known/security.txt', 'Contact: me');
+        file_put_contents($this->projectDir.'/static/hello.txt', 'next to the hello/ page, not inside it');
+
+        $result = $this->createBuilder()->build();
+
+        self::assertSame(5, $result->staticFilesCopied);
+        self::assertSame('icon', file_get_contents($this->projectDir.'/build/favicon.ico'));
+        self::assertFileExists($this->projectDir.'/build/robots.txt');
+        self::assertFileExists($this->projectDir.'/build/.nojekyll');
+        self::assertFileExists($this->projectDir.'/build/.well-known/security.txt');
+        self::assertFileExists($this->projectDir.'/build/hello.txt');
+        self::assertFileExists($this->projectDir.'/build/hello/index.html');
+    }
+
+    #[Test]
+    public function itSkipsVersionControlFilesInTheStaticDirectory(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        mkdir($this->projectDir.'/static/.git', 0777, true);
+        file_put_contents($this->projectDir.'/static/.git/HEAD', 'ref: refs/heads/main');
+        file_put_contents($this->projectDir.'/static/robots.txt', 'User-agent: *');
+
+        $result = $this->createBuilder()->build();
+
+        self::assertSame(1, $result->staticFilesCopied);
+        self::assertDirectoryDoesNotExist($this->projectDir.'/build/.git');
+    }
+
+    #[Test]
+    public function itCopiesNoStaticFilesWhenTheStaticDirectoryIsMissing(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+
+        $result = $this->createBuilder()->build();
+
+        self::assertSame(0, $result->staticFilesCopied);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function conflictingStaticFiles(): iterable
+    {
+        yield 'homepage' => ['index.html', '"index.html"'];
+        yield 'feed' => ['rss.xml', '"rss.xml"'];
+        yield 'sitemap' => ['sitemap.xml', '"sitemap.xml"'];
+        yield 'not found page' => ['404.html', '"404.html"'];
+        yield 'content page' => ['about/index.html', '"about/index.html"'];
+        yield 'file where a page directory goes' => ['about', '"about/index.html"'];
+        yield 'published assets' => ['assets/logo.png', '"assets"'];
+    }
+
+    #[Test]
+    #[DataProvider('conflictingStaticFiles')]
+    public function itFailsBeforeCleaningWhenAStaticFileConflictsWithGeneratedOutput(string $staticFile, string $conflict): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/about.md', '# About');
+        mkdir(dirname($this->projectDir.'/static/'.$staticFile), 0777, true);
+        file_put_contents($this->projectDir.'/static/'.$staticFile, 'static');
+        mkdir($this->projectDir.'/build', 0777, true);
+        file_put_contents($this->projectDir.'/build/previous.html', 'previous');
+
+        try {
+            $this->createBuilder()->build();
+            self::fail('Expected the build to fail.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString(sprintf('Static file "%s" conflicts with the generated %s', $staticFile, $conflict), $exception->getMessage());
+        }
+
+        self::assertFileExists($this->projectDir.'/build/previous.html');
+    }
+
+    #[Test]
     public function itCopiesDefaultStylesByDefault(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
@@ -325,7 +407,7 @@ final class SiteBuilderTest extends TestCase
         mkdir($this->projectDir.'/static/images', 0777, true);
         file_put_contents($this->projectDir.'/static/images/logo.txt', 'logo');
 
-        $builder = $this->createBuilder(contentDirectory: 'site/pages', buildDirectory: 'public_html', assetsDirectory: 'static');
+        $builder = $this->createBuilder(contentDirectory: 'site/pages', buildDirectory: 'public_html', assetsDirectory: 'static', staticDirectory: 'root-files');
         $result = $builder->build();
 
         self::assertSame(1, $result->generatedPages);
@@ -424,7 +506,7 @@ final class SiteBuilderTest extends TestCase
     /**
      * @param list<string> $stylesheets
      */
-    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null, array $stylesheets = [], string $contentDirectory = 'content', string $buildDirectory = 'build', string $assetsDirectory = 'assets'): SiteBuilder
+    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null, array $stylesheets = [], string $contentDirectory = 'content', string $buildDirectory = 'build', string $assetsDirectory = 'assets', string $staticDirectory = 'static'): SiteBuilder
     {
         $resolver = new OutputPathResolver();
         $loader = new ContentLoader($this->projectDir, $resolver);
@@ -441,6 +523,7 @@ final class SiteBuilderTest extends TestCase
             contentDirectory: $contentDirectory,
             buildDirectory: $buildDirectory,
             assetsDirectory: $assetsDirectory,
+            staticDirectory: $staticDirectory,
         );
         $twig = new Environment(new ArrayLoader([
             '@Staccato/page.html.twig' => '<html><body><h1>{{ page.title }}</h1>{{ page.html|raw }}</body></html>',

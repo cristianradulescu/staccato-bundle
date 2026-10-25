@@ -80,6 +80,7 @@ final class SiteBuildCommand extends Command
             ['Detail pages generated' => (string) $result->generatedPages],
             ['Draft pages skipped' => (string) $result->skippedDraftPages],
             ['Assets copied' => $result->assetsCopied ? 'yes' : 'no'],
+            ['Static files copied' => (string) $result->staticFilesCopied],
             ['Duration' => $result->durationMs.'ms'],
         );
 

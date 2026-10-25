@@ -83,8 +83,9 @@ All keys are optional and live under the `staccato` root key:
 | `content_dir` | relative path | `content` |
 | `build_dir` | relative path | `build` |
 | `assets_dir` | relative path | `assets` |
+| `static_dir` | relative path | `static` |
 
-`content_dir`, `build_dir` and `assets_dir` are relative to your project root and may not contain `.` or `..` segments. Because the build directory is removed on every clean build, `build_dir` may not equal, contain, or sit inside `content_dir` or `assets_dir`. Whatever `assets_dir` is called, its files are published under `build/assets/`, so links like `/assets/logo.png` keep working.
+`content_dir`, `build_dir`, `assets_dir` and `static_dir` are relative to your project root and may not contain `.` or `..` segments. Because the build directory is removed on every clean build, `build_dir` may not equal, contain, or sit inside `content_dir`, `assets_dir` or `static_dir`. Whatever `assets_dir` is called, its files are published under `build/assets/`, so links like `/assets/logo.png` keep working. Files in `static_dir` are published at the root of the build directory instead — see "Output layout".
 
 The rest of this README uses the default names (`content/`, `build/`, `assets/`).
 
@@ -107,7 +108,7 @@ To add something to the layout (analytics, a favicon, navigation links, a linked
 {% extends '@!Staccato/base.html.twig' %}
 
 {% block head_extra %}
-    <link rel="icon" href="{{ staccato_path('/assets/favicon.ico') }}">
+    <script async src="https://analytics.example/script.js"></script>
 {% endblock %}
 
 {% block nav %}
@@ -230,6 +231,10 @@ Directory-style URLs are used:
 - `/docs/getting-started/` -> `build/docs/getting-started/index.html`
 
 Assets are mirrored from `assets/` to `build/assets/`. The default stylesheet (unless disabled) is copied to `build/assets/staccato/staccato.css`. Special generated files: `build/404.html`, `build/rss.xml`, `build/sitemap.xml`.
+
+Files that must live at the site root — `favicon.ico`, `robots.txt`, `CNAME`, `.well-known/…` — go in `static/` (or whatever `static_dir` is set to), which is copied to `build/` as-is, subdirectories and dotfiles included (version-control directories such as `.git/` are skipped). A static file may not replace or nest inside generated output: `index.html`, `404.html`, `rss.xml`, `sitemap.xml`, anything under `assets/`, and every page and pagination path are reserved. A conflict fails the build before the build directory is cleaned.
+
+The default is `static/` rather than `public/` on purpose: a Symfony app's `public/` holds its front controller (`index.php`), which must not end up in a static site.
 
 ## Homepage and pagination
 

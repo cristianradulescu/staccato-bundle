@@ -39,6 +39,7 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame('build', $siteConfig->buildDirectory);
         self::assertSame('assets', $siteConfig->assetsDirectory);
         self::assertSame('en', $siteConfig->language);
+        self::assertSame('static', $siteConfig->staticDirectory);
 
         $kernel->shutdown();
     }
@@ -59,6 +60,7 @@ final class StaccatoBundleTest extends TestCase
             'build_dir' => 'public_html',
             'assets_dir' => 'site\\static',
             'language' => 'pt-BR',
+            'static_dir' => 'site/root/',
         ]);
         $kernel->boot();
 
@@ -76,6 +78,7 @@ final class StaccatoBundleTest extends TestCase
         self::assertSame('public_html', $siteConfig->buildDirectory);
         self::assertSame('site/static', $siteConfig->assetsDirectory);
         self::assertSame('pt-BR', $siteConfig->language);
+        self::assertSame('site/root', $siteConfig->staticDirectory);
 
         $kernel->shutdown();
     }
@@ -117,6 +120,8 @@ final class StaccatoBundleTest extends TestCase
         yield 'build equals content' => [['build_dir' => 'content'], 'must not overlap with "staccato.content_dir"'];
         yield 'build inside content' => [['build_dir' => 'content/build'], 'must not overlap with "staccato.content_dir"'];
         yield 'build contains assets' => [['build_dir' => 'site', 'assets_dir' => 'site/assets'], 'must not overlap with "staccato.assets_dir"'];
+        yield 'build equals static' => [['build_dir' => 'static'], 'must not overlap with "staccato.static_dir"'];
+        yield 'static inside build' => [['static_dir' => 'build/root'], 'must not overlap with "staccato.static_dir"'];
     }
 
     /**

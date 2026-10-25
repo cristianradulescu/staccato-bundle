@@ -11,6 +11,7 @@ final readonly class SiteBuildResult
         public int $skippedDraftPages,
         public bool $assetsCopied,
         public int $durationMs,
+        public int $staticFilesCopied = 0,
     ) {
     }
 }

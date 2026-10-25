@@ -63,10 +63,11 @@ final class StaccatoBundle extends AbstractBundle
             ->append(self::projectDirectoryNode('content_dir', 'content'))
             ->append(self::projectDirectoryNode('build_dir', 'build'))
             ->append(self::projectDirectoryNode('assets_dir', 'assets'))
+            ->append(self::projectDirectoryNode('static_dir', 'static'))
             ->validate()
                 ->always(static function (array $config): array {
                     // build_dir is removed on every clean build, so it must never contain or sit inside the sources.
-                    foreach (['content_dir', 'assets_dir'] as $sourceKey) {
+                    foreach (['content_dir', 'assets_dir', 'static_dir'] as $sourceKey) {
                         $build = $config['build_dir'].'/';
                         $source = $config[$sourceKey].'/';
 
@@ -103,6 +104,7 @@ final class StaccatoBundle extends AbstractBundle
                 $config['build_dir'],
                 $config['assets_dir'],
                 $config['language'],
+                $config['static_dir'],
             ]);
     }
 

@@ -12,6 +12,7 @@ use Staccato\Model\SiteConfig;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Filesystem\Path;
+use Symfony\Component\Finder\Finder;
 
 final readonly class SiteBuilder implements SiteBuilderInterface
 {
@@ -67,7 +68,11 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         }
 
         $detailOutputPaths = $this->assertNoDuplicateOutputPaths($detailPages, $buildDirectory);
-        $this->assertNoHomePaginationConflicts($detailPages, $buildDirectory, $siteConfig->articlesPerPage, $detailOutputPaths);
+        $homeOutputPaths = $this->homeOutputPaths($detailPages, $buildDirectory, $siteConfig->articlesPerPage);
+        $this->assertNoHomePaginationConflicts($homeOutputPaths, $detailOutputPaths);
+
+        $staticFiles = $this->findStaticFiles($siteConfig->staticDirectory);
+        $this->assertNoStaticFileConflicts($staticFiles, [...array_keys($detailOutputPaths), ...$homeOutputPaths], $buildDirectory);
 
         if ($clean) {
             $this->filesystem->remove($buildDirectoryPath);
@@ -118,6 +123,8 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             $assetsCopied = true;
         }
 
+        $this->copyStaticFiles($staticFiles, $siteConfig->staticDirectory, $buildDirectory);
+
         $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
 
         return new SiteBuildResult(
@@ -125,6 +132,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             skippedDraftPages: $skippedDraftPages,
             assetsCopied: $assetsCopied,
             durationMs: $durationMs,
+            staticFilesCopied: count($staticFiles),
         );
     }
 
@@ -289,19 +297,94 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     }
 
     /**
-     * @param list<Page>            $pages
-     * @param array<string, string> $existingOutputPaths
+     * @param list<Page> $pages
+     *
+     * @return list<string>
      */
-    private function assertNoHomePaginationConflicts(array $pages, string $buildDirectory, int $articlesPerPage, array $existingOutputPaths): void
+    private function homeOutputPaths(array $pages, string $buildDirectory, int $articlesPerPage): array
     {
         $totalPages = max(1, (int) ceil(count($this->sortedArticlePages($pages)) / max(1, $articlesPerPage)));
+        $outputPaths = [];
 
         for ($pageNumber = 1; $pageNumber <= $totalPages; ++$pageNumber) {
-            $relativeOutputPath = $this->outputPathResolver->resolveOutputPath($this->homeUrlPath($pageNumber), $buildDirectory);
+            $outputPaths[] = $this->outputPathResolver->resolveOutputPath($this->homeUrlPath($pageNumber), $buildDirectory);
+        }
 
+        return $outputPaths;
+    }
+
+    /**
+     * @param list<string>          $homeOutputPaths
+     * @param array<string, string> $existingOutputPaths
+     */
+    private function assertNoHomePaginationConflicts(array $homeOutputPaths, array $existingOutputPaths): void
+    {
+        foreach ($homeOutputPaths as $relativeOutputPath) {
             if (isset($existingOutputPaths[$relativeOutputPath])) {
                 throw new \RuntimeException(sprintf('Home pagination path "%s" conflicts with content file "%s".', $relativeOutputPath, $existingOutputPaths[$relativeOutputPath]));
             }
+        }
+    }
+
+    /**
+     * @return list<string> file paths relative to the static directory
+     */
+    private function findStaticFiles(string $staticDirectory): array
+    {
+        $sourceStaticPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($staticDirectory);
+
+        if (!is_dir($sourceStaticPath)) {
+            return [];
+        }
+
+        $finder = (new Finder())->files()->in($sourceStaticPath)->ignoreDotFiles(false)->ignoreVCS(true)->sortByName();
+        $files = [];
+
+        foreach ($finder as $file) {
+            $files[] = str_replace('\\', '/', $file->getRelativePathname());
+        }
+
+        return $files;
+    }
+
+    /**
+     * Static files are published at the build root, so they must not replace or nest inside a generated file.
+     *
+     * @param list<string> $staticFiles
+     * @param list<string> $generatedOutputPaths output paths prefixed with the build directory
+     */
+    private function assertNoStaticFileConflicts(array $staticFiles, array $generatedOutputPaths, string $buildDirectory): void
+    {
+        if ([] === $staticFiles) {
+            return;
+        }
+
+        $buildPrefix = $this->normalizeRelativeDirectory($buildDirectory).'/';
+        $reservedPaths = ['rss.xml', 'sitemap.xml', '404.html', 'assets'];
+
+        foreach ($generatedOutputPaths as $outputPath) {
+            $reservedPaths[] = substr($outputPath, strlen($buildPrefix));
+        }
+
+        foreach ($staticFiles as $staticFile) {
+            foreach ($reservedPaths as $reservedPath) {
+                if ($staticFile === $reservedPath || str_starts_with($staticFile, $reservedPath.'/') || str_starts_with($reservedPath, $staticFile.'/')) {
+                    throw new \RuntimeException(sprintf('Static file "%s" conflicts with the generated "%s" in the build directory.', $staticFile, $reservedPath));
+                }
+            }
+        }
+    }
+
+    /**
+     * @param list<string> $staticFiles
+     */
+    private function copyStaticFiles(array $staticFiles, string $staticDirectory, string $buildDirectory): void
+    {
+        $sourceStaticPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($staticDirectory);
+        $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
+
+        foreach ($staticFiles as $staticFile) {
+            $this->filesystem->copy($sourceStaticPath.'/'.$staticFile, $targetBuildDirectory.'/'.$staticFile, true);
         }
     }
 

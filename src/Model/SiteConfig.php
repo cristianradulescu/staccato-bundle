@@ -22,6 +22,7 @@ final readonly class SiteConfig
         public string $buildDirectory = 'build',
         public string $assetsDirectory = 'assets',
         public string $language = 'en',
+        public string $staticDirectory = 'static',
     ) {
     }
 }
