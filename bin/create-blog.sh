@@ -73,6 +73,8 @@ done
 step "Creating a Symfony application in $directory"
 composer create-project symfony/skeleton "$directory" '^8.1' --no-interaction
 cd "$directory"
+# The skeleton may allow an older PHP than the bundle needs; the next require updates the lock file.
+composer require 'php:>=8.5' --no-update --no-interaction
 
 step "Installing Staccato"
 if [[ -n "$bundle_path" ]]; then
@@ -89,6 +91,12 @@ for bundle in 'Symfony\Bundle\TwigBundle\TwigBundle' 'Staccato\StaccatoBundle'; 
     fi
 done
 
+step "Removing the web front controller"
+# A static site needs only the console: no front controller, controllers or public/ assets.
+rm -rf public src/Controller templates/base.html.twig
+php -r '$file = "composer.json"; $json = json_decode(file_get_contents($file), true, flags: JSON_THROW_ON_ERROR); unset($json["scripts"]["auto-scripts"]["assets:install %PUBLIC_DIR%"]); file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n");'
+composer update --lock --no-interaction --quiet
+
 step "Writing configuration and sample content"
 # Single-quoted YAML scalars only need their quotes doubled.
 yaml_quote() {
@@ -102,7 +110,7 @@ staccato:
     description: $(yaml_quote "$title, built with Staccato.")
 EOF
 
-mkdir -p content/articles assets
+mkdir -p content/articles assets static
 
 cat > content/articles/hello-world.md <<EOF
 ---
@@ -139,6 +147,51 @@ EOF
 
 printf '\n/build/\n' >> .gitignore
 
+mkdir -p .github/workflows
+cat > .github/workflows/pages.yml <<'EOF'
+# Builds the site and deploys it to GitHub Pages on every push to main.
+# Enable it under Settings > Pages > Build and deployment > Source: GitHub Actions,
+# and set staccato.base_url to the Pages URL of the repository.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      APP_ENV: prod
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          tools: composer
+      - run: composer install --no-dev --no-interaction --prefer-dist
+      - run: php bin/console site:build --env=prod
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: build
+      - id: deployment
+        uses: actions/deploy-pages@v4
+EOF
+
 if [[ "$build" -eq 1 ]]; then
     step "Building the site"
     php bin/console site:build --env=prod
@@ -150,8 +203,10 @@ Your blog lives in $directory:
 
   content/articles/   your articles (Markdown with front matter)
   content/about.md    a standalone page
-  assets/             static files copied into the build as-is
+  assets/             files published under /assets/ (images, downloads)
+  static/             files published at the site root (favicon.ico, robots.txt)
   config/packages/staccato.yaml
+  .github/workflows/pages.yml   GitHub Pages deployment (delete it if you host elsewhere)
 
 Rebuild after editing content:
 

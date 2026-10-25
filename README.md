@@ -21,7 +21,7 @@ cd my-blog
 php -S localhost:8000 -t build
 ```
 
-It checks for PHP 8.5+ and Composer first. Options: `--bundle-path <path>` installs the bundle from a local checkout instead of Packagist, and `--no-build` skips the initial build. Run it with `--help` to see all options.
+It checks for PHP 8.5+ and Composer first. The generated app requires PHP 8.5+, has no web front controller (`public/`, `src/Controller/` and the skeleton's `templates/base.html.twig` are removed, since a static site only needs the console), and comes with empty `assets/` and `static/` directories and a GitHub Pages workflow in `.github/workflows/pages.yml` (delete it if you host elsewhere). Options: `--bundle-path <path>` installs the bundle from a local checkout instead of Packagist, and `--no-build` skips the initial build. Run it with `--help` to see all options.
 
 ## Installation (into a consuming Symfony app)
 
