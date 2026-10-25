@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-25
+
 ### Added
 - Layout blocks in the default `base.html.twig`: `head_extra`, `header`, `site_title`, `nav`, `footer` and `footer_content`. Extend `@!Staccato/base.html.twig` and fill in only the blocks you need instead of copying the whole layout. The default theme styles a `<nav class="site-nav">` in the header.
 - Social metadata in the default templates: `og:site_name`, `og:type`, `og:title`, `og:description`, `og:url`, `twitter:card`, and `article:published_time` for dated pages. Customizable through the `social_meta`, `og_type`, `og_title` and `og_meta` blocks.
@@ -40,5 +42,6 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 - `bin/create-blog.sh`, a helper script that creates a new Symfony application with Staccato, sample content and a first build.
 - Quality tooling: PHP CS Fixer, PHPStan (level 7), PHPUnit, and a `composer qa` quality gate.
 
-[Unreleased]: https://github.com/cristianradulescu/staccato-bundle/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cristianradulescu/staccato-bundle/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cristianradulescu/staccato-bundle/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cristianradulescu/staccato-bundle/releases/tag/v0.1.0
