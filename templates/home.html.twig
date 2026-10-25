@@ -4,6 +4,10 @@
 <link rel="canonical" href="{{ staccato_url(home.urlPath) }}">
 {% endblock %}
 
+{% block og_meta %}
+<meta property="og:url" content="{{ staccato_url(home.urlPath) }}">
+{% endblock %}
+
 {% block content %}
     <div class="article-list">
         {% for article in home.articles %}

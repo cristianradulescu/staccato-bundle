@@ -249,6 +249,108 @@ final class DefaultTemplatesTest extends TestCase
     }
 
     #[Test]
+    public function itRendersSocialMetadataForUndatedPages(): void
+    {
+        $html = $this->twig->render('@Staccato/page.html.twig', [
+            'page' => $this->createPage(excerpt: 'Short "summary" & more'),
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<meta property="og:site_name" content="My Site">', $html);
+        self::assertStringContainsString('<meta property="og:type" content="website">', $html);
+        self::assertStringContainsString('<meta property="og:title" content="About">', $html);
+        self::assertStringContainsString('<meta property="og:description" content="Short &quot;summary&quot; &amp; more">', $html);
+        self::assertStringContainsString('<meta property="og:url" content="http://localhost/about/">', $html);
+        self::assertStringContainsString('<meta name="twitter:card" content="summary">', $html);
+        self::assertStringNotContainsString('article:published_time', $html);
+    }
+
+    #[Test]
+    public function itMarksDatedPagesAsArticles(): void
+    {
+        $page = new Page(
+            sourcePath: 'articles/first.md',
+            title: 'First article',
+            slug: 'first-article',
+            publishedAt: new \DateTimeImmutable('2026-01-15T10:30:00+00:00'),
+            excerpt: 'Excerpt',
+            draft: false,
+            html: '<p>Body</p>',
+            urlPath: '/first-article/',
+        );
+
+        $html = $this->twig->render('@Staccato/page.html.twig', [
+            'page' => $page,
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<meta property="og:type" content="article">', $html);
+        self::assertStringContainsString('<meta property="og:title" content="First article">', $html);
+        self::assertMatchesRegularExpression('#<meta property="article:published_time" content="2026-01-15T\d{2}:\d{2}:00[+-]\d{2}:\d{2}">#', $html);
+    }
+
+    #[Test]
+    public function itRendersSocialMetadataForHomePages(): void
+    {
+        $home = new PaginatedHomeContext(
+            articles: [],
+            currentPage: 2,
+            totalPages: 2,
+            previousPageUrl: '/',
+            nextPageUrl: null,
+            urlPath: '/page/2/',
+        );
+
+        $html = $this->twig->render('@Staccato/home.html.twig', [
+            'home' => $home,
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<meta property="og:type" content="website">', $html);
+        self::assertStringContainsString('<meta property="og:title" content="My Site">', $html);
+        self::assertStringContainsString('<meta property="og:description" content="Static site generated with Staccato.">', $html);
+        self::assertStringContainsString('<meta property="og:url" content="http://localhost/page/2/">', $html);
+    }
+
+    #[Test]
+    public function itOmitsTheSocialUrlWhenThereIsNoCanonicalPage(): void
+    {
+        $html = $this->twig->render('@Staccato/404.html.twig', [
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<meta property="og:title" content="My Site">', $html);
+        self::assertStringNotContainsString('og:url', $html);
+    }
+
+    #[Test]
+    public function itLetsChildTemplatesReplaceTheSocialMetadata(): void
+    {
+        $template = $this->twig->createTemplate(<<<'TWIG'
+            {% extends '@Staccato/base.html.twig' %}
+            {% block social_meta %}<meta property="og:image" content="/card.png">{% endblock %}
+            TWIG);
+
+        $html = $template->render([
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<meta property="og:image" content="/card.png">', $html);
+        self::assertStringNotContainsString('og:title', $html);
+        self::assertStringNotContainsString('twitter:card', $html);
+    }
+
+    #[Test]
     public function itFallsBackToTheSiteDescriptionForPagesWithoutExcerpt(): void
     {
         $html = $this->twig->render('@Staccato/page.html.twig', [

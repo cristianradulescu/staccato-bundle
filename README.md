@@ -140,6 +140,8 @@ Helpers available in every template:
 
 The default `base.html.twig` renders `<html lang>` from `language`, a `<meta name="description">`, an RSS `<link rel="alternate">`, and exposes two blocks for page-specific head metadata: `description` (defaults to the site description; pages use their excerpt) and `canonical` (pages and homepage listings render an absolute `<link rel="canonical">`).
 
+It also renders social metadata for link previews: `og:site_name`, `og:type`, `og:title`, `og:description` (same as the `description` block), `og:url` and a `twitter:card` of type `summary`. Pages use their own title and URL; dated pages are typed `article` and get an `article:published_time`. The values come from the `og_type`, `og_title` and `og_meta` (page-specific tags such as `og:url`) blocks; override `social_meta` to replace the whole set, e.g. to add an `og:image`.
+
 ## Hosting under a sub-path
 
 If the site is served from a sub-path rather than a domain root — e.g. a GitHub Pages project site at `https://user.github.io/my-repo/` — include that path in `base_url`:
