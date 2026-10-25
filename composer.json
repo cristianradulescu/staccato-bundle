@@ -24,6 +24,7 @@
         "symfony/config": "^8.1",
         "symfony/console": "^8.1",
         "symfony/dependency-injection": "^8.1",
+        "symfony/event-dispatcher": "^8.1",
         "symfony/filesystem": "^8.1",
         "symfony/finder": "^8.1",
         "symfony/http-foundation": "^8.1.7",

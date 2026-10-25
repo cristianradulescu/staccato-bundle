@@ -9,10 +9,11 @@ services:
         autoconfigure: true
 
     # Makes classes in src/ available as services.
-    # Model/ contains plain DTOs that are never fetched from the container,
+    # Model/ and Event/ contain plain DTOs that are never fetched from the container,
     # and the bundle class itself has no business being a service.
     Staccato\:
         resource: '../src/'
         exclude:
             - '../src/StaccatoBundle.php'
             - '../src/Model/'
+            - '../src/Event/'

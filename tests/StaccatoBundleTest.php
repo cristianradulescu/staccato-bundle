@@ -7,10 +7,14 @@ namespace Staccato\Tests;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Staccato\Event\SiteBuiltEvent;
 use Staccato\Model\SiteConfig;
+use Staccato\Service\SiteBuilderInterface;
 use Staccato\Tests\Fixtures\TestKernel;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Filesystem\Filesystem;
 
 final class StaccatoBundleTest extends TestCase
 {
@@ -137,6 +141,39 @@ final class StaccatoBundleTest extends TestCase
         $this->expectExceptionMessage($expectedMessage);
 
         $kernel->boot();
+    }
+
+    #[Test]
+    public function itDispatchesSiteBuiltEventThroughTheApplicationEventDispatcher(): void
+    {
+        $projectDir = sys_get_temp_dir().'/staccato-bundle-build-'.bin2hex(random_bytes(8));
+        $filesystem = new Filesystem();
+        $filesystem->dumpFile($projectDir.'/content/articles/hello.md', '# Hello');
+
+        $kernel = new TestKernel('site_built_event', [], $projectDir);
+        $kernel->boot();
+
+        /** @var ContainerInterface $testContainer */
+        $testContainer = $kernel->getContainer()->get('test.service_container');
+
+        /** @var EventDispatcherInterface $eventDispatcher */
+        $eventDispatcher = $testContainer->get('event_dispatcher');
+        $builtDirectories = [];
+        $eventDispatcher->addListener(SiteBuiltEvent::class, static function (SiteBuiltEvent $event) use (&$builtDirectories): void {
+            $builtDirectories[] = $event->buildDirectory;
+        });
+
+        /** @var SiteBuilderInterface $siteBuilder */
+        $siteBuilder = $testContainer->get(SiteBuilderInterface::class);
+
+        try {
+            $siteBuilder->build();
+        } finally {
+            $kernel->shutdown();
+            $filesystem->remove($projectDir);
+        }
+
+        self::assertSame([$projectDir.'/build'], $builtDirectories);
     }
 
     private function getSiteConfig(TestKernel $kernel): SiteConfig

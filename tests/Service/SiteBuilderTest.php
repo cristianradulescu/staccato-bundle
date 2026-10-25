@@ -7,12 +7,14 @@ namespace Staccato\Tests\Service;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Staccato\Event\SiteBuiltEvent;
 use Staccato\Model\SiteConfig;
 use Staccato\Service\ContentLoader;
 use Staccato\Service\FixtureContentGenerator;
 use Staccato\Service\OutputPathResolver;
 use Staccato\Service\PageRenderer;
 use Staccato\Service\SiteBuilder;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
@@ -73,6 +75,59 @@ final class SiteBuilderTest extends TestCase
         $this->createBuilder()->build();
 
         self::assertStringContainsString('<span class="author">Jane Doe</span>', (string) file_get_contents($this->projectDir.'/build/index.html'));
+    }
+
+    #[Test]
+    public function itDispatchesSiteBuiltEventAfterEveryFileIsWritten(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/about.md', '# About');
+        file_put_contents($this->projectDir.'/content/articles/hello.md', '# Hello');
+        file_put_contents($this->projectDir.'/content/articles/draft.md', "---\ndraft: true\n---\n# Draft");
+        mkdir($this->projectDir.'/static', 0777, true);
+        file_put_contents($this->projectDir.'/static/robots.txt', 'User-agent: *');
+
+        $events = [];
+        $eventDispatcher = new EventDispatcher();
+        $eventDispatcher->addListener(SiteBuiltEvent::class, function (SiteBuiltEvent $event) use (&$events): void {
+            // Everything the build writes is already in place when listeners run.
+            self::assertFileExists($event->buildDirectory.'/index.html');
+            self::assertFileExists($event->buildDirectory.'/sitemap.xml');
+            self::assertFileExists($event->buildDirectory.'/robots.txt');
+            self::assertFileExists($event->buildDirectory.'/assets/staccato/staccato.css');
+
+            file_put_contents($event->buildDirectory.'/search.json', '[]');
+            $events[] = $event;
+        });
+
+        $this->createBuilder(eventDispatcher: $eventDispatcher)->build();
+
+        self::assertCount(1, $events);
+        self::assertSame($this->projectDir.'/build', $events[0]->buildDirectory);
+        self::assertSame(['about.md', 'articles/hello.md'], array_map(static fn ($page): string => $page->sourcePath, $events[0]->pages));
+        self::assertFileExists($this->projectDir.'/build/search.json');
+    }
+
+    #[Test]
+    public function itDoesNotDispatchSiteBuiltEventWhenTheBuildFails(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/about.md', '# About');
+        file_put_contents($this->projectDir.'/content/articles/about-us.md', "---\nslug: about\n---\n# About Us");
+
+        $dispatched = false;
+        $eventDispatcher = new EventDispatcher();
+        $eventDispatcher->addListener(SiteBuiltEvent::class, static function () use (&$dispatched): void {
+            $dispatched = true;
+        });
+
+        try {
+            $this->createBuilder(eventDispatcher: $eventDispatcher)->build();
+            self::fail('Expected the build to fail.');
+        } catch (\RuntimeException) {
+        }
+
+        self::assertFalse($dispatched);
     }
 
     #[Test]
@@ -517,7 +572,7 @@ final class SiteBuilderTest extends TestCase
     /**
      * @param list<string> $stylesheets
      */
-    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null, array $stylesheets = [], string $contentDirectory = 'content', string $buildDirectory = 'build', string $assetsDirectory = 'assets', string $staticDirectory = 'static'): SiteBuilder
+    private function createBuilder(bool $includeDefaultStyles = true, ?string $highlighterCss = null, array $stylesheets = [], string $contentDirectory = 'content', string $buildDirectory = 'build', string $assetsDirectory = 'assets', string $staticDirectory = 'static', ?EventDispatcher $eventDispatcher = null): SiteBuilder
     {
         $resolver = new OutputPathResolver();
         $loader = new ContentLoader($this->projectDir, $resolver);
@@ -546,7 +601,7 @@ final class SiteBuilderTest extends TestCase
         $renderer = new PageRenderer($twig);
         $fixtureGenerator = new FixtureContentGenerator($this->projectDir, $filesystem);
 
-        return new SiteBuilder($this->projectDir, $this->defaultAssetsDir, $filesystem, $siteConfig, $loader, $fixtureGenerator, $resolver, $renderer);
+        return new SiteBuilder($this->projectDir, $this->defaultAssetsDir, $filesystem, $siteConfig, $loader, $fixtureGenerator, $resolver, $renderer, $eventDispatcher ?? new EventDispatcher());
     }
 
     private function removeDirectory(string $path): void

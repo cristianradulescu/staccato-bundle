@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Staccato\Service;
 
+use Staccato\Event\SiteBuiltEvent;
 use Staccato\Model\Page;
 use Staccato\Model\PageListItem;
 use Staccato\Model\PaginatedHomeContext;
@@ -13,6 +14,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Finder\Finder;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final readonly class SiteBuilder implements SiteBuilderInterface
 {
@@ -27,6 +29,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         private FixtureContentGenerator $fixtureContentGenerator,
         private OutputPathResolver $outputPathResolver,
         private PageRenderer $pageRenderer,
+        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -124,6 +127,8 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         }
 
         $this->copyStaticFiles($staticFiles, $siteConfig->staticDirectory, $buildDirectory);
+
+        $this->eventDispatcher->dispatch(new SiteBuiltEvent($buildDirectoryPath, $detailPages));
 
         $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
 

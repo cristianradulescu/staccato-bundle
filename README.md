@@ -255,6 +255,36 @@ Files that must live at the site root — `favicon.ico`, `robots.txt`, `CNAME`, 
 
 The default is `static/` rather than `public/` on purpose: a Symfony app's `public/` holds its front controller (`index.php`), which must not end up in a static site.
 
+
+## Adding files after a build
+
+When a build has written every page, feed, asset and static file, `SiteBuilder` dispatches a `Staccato\Event\SiteBuiltEvent`. Listen to it to add your own files to the build — redirects, a search index, an extra feed — in PHP instead of a shell step after `site:build`:
+
+```php
+// src/EventListener/SearchIndexListener.php
+namespace App\EventListener;
+
+use Staccato\Event\SiteBuiltEvent;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\Filesystem\Filesystem;
+
+#[AsEventListener]
+final class SearchIndexListener
+{
+    public function __invoke(SiteBuiltEvent $event): void
+    {
+        $index = array_map(
+            static fn ($page): array => ['title' => $page->title, 'url' => $page->urlPath, 'excerpt' => $page->excerpt],
+            $event->pages,
+        );
+
+        (new Filesystem())->dumpFile($event->buildDirectory.'/search.json', json_encode($index, JSON_THROW_ON_ERROR));
+    }
+}
+```
+
+The event carries `buildDirectory` (absolute path) and `pages` (every page written by this build, drafts only when they were included). Inject `Staccato\Model\SiteConfig` into the listener if you need the site configuration. The event is not dispatched when the build fails. An exception thrown by a listener fails `site:build`, but the files written so far stay in the build directory. Unlike static files, files written by listeners are not checked for conflicts, so a listener can deliberately replace a generated file.
+
 ## Homepage and pagination
 
 - Homepage lists only files from `content/articles/`, ordered by `date` (newest first).

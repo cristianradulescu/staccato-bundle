@@ -20,10 +20,12 @@ final class TestKernel extends Kernel
 
     /**
      * @param array<string, mixed> $staccatoConfig
+     * @param ?string              $projectDir     overrides the project directory, for tests that build a site
      */
     public function __construct(
         string $environment,
         private readonly array $staccatoConfig = [],
+        private readonly ?string $projectDir = null,
     ) {
         $this->cacheId = bin2hex(random_bytes(8));
 
@@ -56,6 +58,11 @@ final class TestKernel extends Kernel
 
             $container->loadFromExtension('staccato', $staccatoConfig);
         });
+    }
+
+    public function getProjectDir(): string
+    {
+        return $this->projectDir ?? parent::getProjectDir();
     }
 
     public function getCacheDir(): string

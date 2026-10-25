@@ -6,7 +6,7 @@ Guidance for coding agents (Claude Code, Codex, etc.) working in this repository
 - Symfony 8 bundle library (PHP >= 8.5) using Composer, package name `cristianradulescu/staccato-bundle`.
 - This repo is the **engine**: no `content/` or app kernel live here (those belong to whatever Symfony application requires this bundle), but it does ship default `templates/` and a default stylesheet (`public/css/staccato.css`) so consumers get a working site out of the box.
 - Static-site generator uses Symfony-horizontal structure (`src/Model/`, `src/Service/`, `src/Command/`, `src/Twig/`), plus `src/StaccatoBundle.php` (extends `AbstractBundle`).
-- Core build flow: `ContentLoader` -> `SiteBuilder` -> `SiteBuildCommand`, with `SiteConfig` built directly by `StaccatoBundle::loadExtension()` from the `staccato` config tree, and optional fixtures from `FixtureContentGenerator`.
+- Core build flow: `ContentLoader` -> `SiteBuilder` (dispatches `Event\SiteBuiltEvent` once every file is written) -> `SiteBuildCommand`, with `SiteConfig` built directly by `StaccatoBundle::loadExtension()` from the `staccato` config tree, and optional fixtures from `FixtureContentGenerator`.
 - Markdown is rendered by `tempest/markdown` with `tempest/highlight` for fenced code blocks (both wired in `ContentLoader`).
 
 ## Canonical Commands
@@ -29,7 +29,7 @@ There is no `bin/console`/`site:build` to run directly in this repo — `site:bu
 ## Codebase Boundaries
 - Root namespace is `Staccato\` mapped to `src/` (`composer.json`).
 - Bundle-internal services are wired via `config/services.yaml`, imported by `StaccatoBundle::loadExtension()` — this is the bundle's own config, not an app's `config/services.yaml`.
-- `src/Model/` contains plain DTOs and is excluded from service autoregistration.
+- `src/Model/` and `src/Event/` contain plain DTOs and are excluded from service autoregistration.
 - Consumers configure the bundle under the `staccato:` root key (e.g. `config/packages/staccato.yaml` in their app), validated by `StaccatoBundle::configure()`.
 - Default templates live in `templates/` at the bundle root (sibling of `src/`), auto-registered by `TwigBundle` under the `@Staccato` namespace since `StaccatoBundle` extends `AbstractBundle` (whose `getPath()` resolves to the bundle root, not `src/`). Consumers override one template at a time via `templates/bundles/StaccatoBundle/<file>.twig` in their own app — standard Symfony convention, no extra code needed here.
 - The default stylesheet lives in `public/css/staccato.css` at the bundle root; `StaccatoBundle::loadExtension()` exposes its directory as the `staccato.default_assets_dir` container parameter, consumed by `SiteBuilder` to copy it into `build/assets/staccato/staccato.css`. `include_default_styles` only controls that file: `stylesheets` and `highlighter_css` are copied and linked independently, so users can replace the theme through config alone.
