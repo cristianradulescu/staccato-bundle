@@ -197,6 +197,25 @@ Supported Markdown front matter keys:
 - `excerpt` (string)
 - `draft` (boolean)
 
+Any other key is passed through untouched to templates as `page.meta` (and `article.meta` for items in the homepage listing), so you can add your own:
+
+```markdown
+---
+title: Hello
+author: Jane Doe
+tags: [php, symfony]
+---
+```
+
+```twig
+{% if page.meta.author is defined %}<p class="byline">By {{ page.meta.author }}</p>{% endif %}
+{% for tag in page.meta.tags ?? [] %}<span class="tag">{{ tag }}</span>{% endfor %}
+```
+
+Values keep their YAML types; an unquoted date such as `updated: 2026-04-01` becomes a Unix timestamp, which Twig's `date` filter accepts.
+
+Coming from Jekyll, Hugo or Jigsaw? There `description` usually feeds the `<meta name="description">` and the post summary; in Staccato that is `excerpt`. A `description` key is only available as `page.meta.description`.
+
 Notes:
 
 - Missing `title`/`slug` are derived from the source path: `content/about.md` -> `/about/`, `content/docs/setup.md` -> `/docs/setup/`. Files in `content/articles/` drop the `articles/` prefix (`content/articles/hello.md` -> `/hello/`).

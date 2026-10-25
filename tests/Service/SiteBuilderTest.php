@@ -65,6 +65,17 @@ final class SiteBuilderTest extends TestCase
     }
 
     #[Test]
+    public function itPassesFrontMatterMetaToHomeListingItems(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/hello.md', "---\nauthor: Jane Doe\n---\n# Hello");
+
+        $this->createBuilder()->build();
+
+        self::assertStringContainsString('<span class="author">Jane Doe</span>', (string) file_get_contents($this->projectDir.'/build/index.html'));
+    }
+
+    #[Test]
     public function itSkipsDraftPagesByDefault(): void
     {
         mkdir($this->projectDir.'/content', 0777, true);
@@ -527,7 +538,7 @@ final class SiteBuilderTest extends TestCase
         );
         $twig = new Environment(new ArrayLoader([
             '@Staccato/page.html.twig' => '<html><body><h1>{{ page.title }}</h1>{{ page.html|raw }}</body></html>',
-            '@Staccato/home.html.twig' => '<html><body>{% for article in home.articles %}<a href="{{ article.urlPath }}">Read more -&gt;</a>{% endfor %}{% if home.totalPages > 1 %}page {{ home.currentPage }} of {{ home.totalPages }}{% endif %}<link rel="canonical" href="{{ home.urlPath }}"></body></html>',
+            '@Staccato/home.html.twig' => '<html><body>{% for article in home.articles %}{% if article.meta.author is defined %}<span class="author">{{ article.meta.author }}</span>{% endif %}<a href="{{ article.urlPath }}">Read more -&gt;</a>{% endfor %}{% if home.totalPages > 1 %}page {{ home.currentPage }} of {{ home.totalPages }}{% endif %}<link rel="canonical" href="{{ home.urlPath }}"></body></html>',
             '@Staccato/rss.xml.twig' => '<rss version="2.0">{% for article in articles %}<item><title>{{ article.title }}</title></item>{% endfor %}</rss>',
             '@Staccato/sitemap.xml.twig' => '<urlset>{% for path in urls %}<url><loc>{{ baseUrl }}{{ path }}</loc></url>{% endfor %}</urlset>',
             '@Staccato/404.html.twig' => '<html><body>404</body></html>',

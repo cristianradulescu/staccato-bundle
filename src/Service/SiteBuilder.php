@@ -259,6 +259,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
                 publishedAt: $page->publishedAt,
                 excerpt: $page->excerpt,
                 urlPath: $page->urlPath,
+                meta: $page->meta,
             ),
             $articles,
         );

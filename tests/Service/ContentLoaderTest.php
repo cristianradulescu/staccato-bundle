@@ -57,6 +57,28 @@ final class ContentLoaderTest extends TestCase
         self::assertFalse($pages[0]->draft);
         self::assertStringContainsString('<h1 id="hello">Hello</h1>', $pages[0]->html);
         self::assertStringContainsString('<p>Welcome.</p>', $pages[0]->html);
+        self::assertSame([], $pages[0]->meta);
+    }
+
+    #[Test]
+    public function itExposesUnknownFrontMatterKeysAsMeta(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents(
+            $this->projectDir.'/content/about.md',
+            "---\ntitle: About\ndate: 2026-04-01\nauthor: Jane Doe\ndescription: A longer description\ntags: [php, symfony]\nseries:\n  name: Basics\n  part: 2\n---\n# About",
+        );
+        file_put_contents($this->projectDir.'/content/plain.md', '# Plain');
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertSame([
+            'author' => 'Jane Doe',
+            'description' => 'A longer description',
+            'tags' => ['php', 'symfony'],
+            'series' => ['name' => 'Basics', 'part' => 2],
+        ], $pages[0]->meta);
+        self::assertSame([], $pages[1]->meta);
     }
 
     #[Test]

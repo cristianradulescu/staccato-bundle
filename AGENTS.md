@@ -48,7 +48,7 @@ There is no `bin/console`/`site:build` to run directly in this repo — `site:bu
 - `TestKernel` uses a random cache directory per instance on purpose: with debug off, a reused cache dir silently serves a stale container.
 
 ## Content Conventions
-- Supported front matter keys are `title`, `slug`, `date`, `excerpt`, `draft`. This is engine behavior (`ContentLoader`), independent of which app's `content/` directory is being read. Front matter tolerates CRLF line endings, a UTF-8 BOM and trailing whitespace on the `---` delimiters.
+- Supported front matter keys are `title`, `slug`, `date`, `excerpt`, `draft`; every other key is passed through as `Page::$meta` / `PageListItem::$meta` (`ContentLoader::RESERVED_FRONT_MATTER_KEYS`). This is engine behavior (`ContentLoader`), independent of which app's `content/` directory is being read. Front matter tolerates CRLF line endings, a UTF-8 BOM and trailing whitespace on the `---` delimiters.
 - Homepage listing pulls only from a source path starting with `articles/`; that prefix is dropped from article URLs.
 - Missing `title`/`slug` are derived from the source path; `content/docs.md` is how a directory gets its own page (`/docs/`). `index.md` files are rejected by `ContentLoader`, and a slug resolving to `/` is rejected by `OutputPathResolver` — `/` is reserved for the generated homepage.
 - Directory-style output URLs: `/` -> `build/index.html`, `/about/` -> `build/about/index.html`.

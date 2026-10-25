@@ -6,6 +6,9 @@ namespace Staccato\Model;
 
 final readonly class Page
 {
+    /**
+     * @param array<string, mixed> $meta front matter keys other than the ones Staccato interprets itself
+     */
     public function __construct(
         public string $sourcePath,
         public string $title,
@@ -15,6 +18,7 @@ final readonly class Page
         public bool $draft,
         public string $html,
         public string $urlPath,
+        public array $meta = [],
     ) {
     }
 }
