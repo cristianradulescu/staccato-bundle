@@ -6,6 +6,21 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+### Added
+- Layout blocks in the default `base.html.twig`: `head_extra`, `header`, `site_title`, `nav`, `footer` and `footer_content`. Extend `@!Staccato/base.html.twig` and fill in only the blocks you need instead of copying the whole layout. The default theme styles a `<nav class="site-nav">` in the header.
+- Social metadata in the default templates: `og:site_name`, `og:type`, `og:title`, `og:description`, `og:url`, `twitter:card`, and `article:published_time` for dated pages. Customizable through the `social_meta`, `og_type`, `og_title` and `og_meta` blocks.
+- `static_dir` configuration (default `static/`): its files are copied to the root of the build directory as-is, for `favicon.ico`, `robots.txt`, `CNAME` or `.well-known/`. Static files that would replace or nest inside generated output fail the build before the build directory is cleaned.
+- `page.meta` (and `meta` on homepage listing items): every front matter key other than the ones Staccato interprets, passed through untouched, so templates can use `author`, `tags` and similar keys.
+- `aliases` front matter: old URLs of a page, each written as a redirect page (`redirect.html.twig`: meta refresh, canonical link, `noindex`). Aliases keep their case and may end in `.html`, so URLs from a previous generator keep working. They are validated against every other output before the build directory is cleaned.
+- `Staccato\Event\SiteBuiltEvent`, dispatched after a successful build with the build directory and the built pages, to add files such as redirects, a search index or extra feeds from a listener.
+- `site:build` reports the number of static files copied and redirects generated.
+- `bin/create-blog.sh` writes a GitHub Pages deployment workflow (`.github/workflows/pages.yml`) and creates a `static/` directory.
+
+### Changed
+- `bin/create-blog.sh` requires PHP 8.5 in the generated `composer.json` and removes the web front controller (`public/`, `src/Controller/`, the skeleton's `templates/base.html.twig` and the `assets:install` auto-script), which a static site does not need.
+- `SiteBuilder` takes an event dispatcher as a new constructor argument; `symfony/event-dispatcher` is now a direct dependency. Applications using the autowired service are not affected.
+- The header container of the default `base.html.twig` has an extra `site-header-inner` class, laid out as a flex row.
+
 ## [0.1.0] - 2026-10-24
 
 ### Added
