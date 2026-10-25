@@ -16,13 +16,19 @@
     {% for stylesheet in stylesheets %}
     <link rel="stylesheet" href="{{ staccato_path('/assets/staccato/' ~ stylesheet) }}">
     {% endfor %}
+    {% block head_extra %}{% endblock %}
 </head>
 <body>
+    {% block header %}
     <header class="site-header">
-        <div class="site-container">
+        <div class="site-container site-header-inner">
+            {% block site_title %}
             <a class="site-title" href="{{ staccato_path('/') }}">{{ siteTitle }}</a>
+            {% endblock %}
+            {% block nav %}{% endblock %}
         </div>
     </header>
+    {% endblock %}
 
     <main class="site-main">
         <div class="site-container">
@@ -30,10 +36,14 @@
         </div>
     </main>
 
+    {% block footer %}
     <footer class="site-footer">
         <div class="site-container">
+            {% block footer_content %}
             <p>{{ footerText }}</p>
+            {% endblock %}
         </div>
     </footer>
+    {% endblock %}
 </body>
 </html>

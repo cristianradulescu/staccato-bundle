@@ -317,6 +317,65 @@ final class DefaultTemplatesTest extends TestCase
     }
 
     #[Test]
+    public function itRendersTheDefaultLayoutWithoutExtensionBlockContent(): void
+    {
+        $html = $this->twig->render('@Staccato/404.html.twig', [
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<a class="site-title" href="/">My Site</a>', $html);
+        self::assertStringContainsString('<p>Built with Staccato</p>', $html);
+        self::assertStringNotContainsString('<nav', $html);
+    }
+
+    #[Test]
+    public function itLetsChildTemplatesExtendTheLayoutThroughBlocks(): void
+    {
+        $template = $this->twig->createTemplate(<<<'TWIG'
+            {% extends '@Staccato/base.html.twig' %}
+            {% block head_extra %}<script src="/analytics.js"></script>{% endblock %}
+            {% block site_title %}<a class="site-title" href="/">~/my-site</a>{% endblock %}
+            {% block nav %}<nav class="site-nav"><a href="/about/">About</a></nav>{% endblock %}
+            {% block footer_content %}<p>Built with <a href="https://example.test">Staccato</a>.</p>{% endblock %}
+            TWIG);
+
+        $html = $template->render([
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertMatchesRegularExpression('#<script src="/analytics.js"></script>\s*</head>#', $html);
+        self::assertStringContainsString('<a class="site-title" href="/">~/my-site</a>', $html);
+        self::assertStringNotContainsString('>My Site</a>', $html);
+        self::assertStringContainsString('<nav class="site-nav"><a href="/about/">About</a></nav>', $html);
+        self::assertStringContainsString('<p>Built with <a href="https://example.test">Staccato</a>.</p>', $html);
+        self::assertStringNotContainsString('<p>Built with Staccato</p>', $html);
+    }
+
+    #[Test]
+    public function itLetsChildTemplatesReplaceTheWholeHeaderAndFooter(): void
+    {
+        $template = $this->twig->createTemplate(<<<'TWIG'
+            {% extends '@Staccato/base.html.twig' %}
+            {% block header %}<header class="custom-header"></header>{% endblock %}
+            {% block footer %}{% endblock %}
+            TWIG);
+
+        $html = $template->render([
+            'siteTitle' => 'My Site',
+            'footerText' => 'Built with Staccato',
+            'includeDefaultStyles' => true,
+        ]);
+
+        self::assertStringContainsString('<header class="custom-header"></header>', $html);
+        self::assertStringNotContainsString('site-header', $html);
+        self::assertStringNotContainsString('<footer', $html);
+    }
+
+    #[Test]
     public function itRendersTheDefaultNotFoundTemplate(): void
     {
         $html = $this->twig->render('@Staccato/404.html.twig', [

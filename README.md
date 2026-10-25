@@ -100,6 +100,38 @@ templates/bundles/StaccatoBundle/page.html.twig
 
 This file takes priority over the bundle's own `page.html.twig`, while every other default template keeps working unchanged. Override `base.html.twig` to change the overall layout, or override individual page templates to change just their content structure.
 
+To add something to the layout (analytics, a favicon, navigation links, a linked footer), override `base.html.twig` by extending the bundle's own version and filling in only the blocks you need, so later changes to the default layout still reach your site:
+
+```twig
+{# templates/bundles/StaccatoBundle/base.html.twig #}
+{% extends '@!Staccato/base.html.twig' %}
+
+{% block head_extra %}
+    <link rel="icon" href="{{ staccato_path('/assets/favicon.ico') }}">
+{% endblock %}
+
+{% block nav %}
+    <nav class="site-nav" aria-label="Main">
+        <a href="{{ staccato_path('/about/') }}">About</a>
+    </nav>
+{% endblock %}
+
+{% block footer_content %}
+    <p>Built with <a href="https://github.com/cristianradulescu/staccato-bundle">Staccato</a>.</p>
+{% endblock %}
+```
+
+`@!Staccato` refers to the bundle's original template, bypassing your override. Layout blocks in `base.html.twig`:
+
+| Block | Default | Use it for |
+|---|---|---|
+| `head_extra` | empty, at the end of `<head>` | analytics, favicon, extra meta tags or scripts |
+| `header` | the whole `<header>` element | replacing the header entirely |
+| `site_title` | the site title link, inside the header | a custom title, logo or icon |
+| `nav` | empty, after the site title | navigation links (`<nav class="site-nav">` is styled by the default theme) |
+| `footer` | the whole `<footer>` element | replacing the footer entirely |
+| `footer_content` | `footer_text` in a `<p>`, inside the footer | footer markup with links |
+
 Helpers available in every template:
 
 - `staccato_path(path)` — a site-relative link or asset path (`{{ staccato_path(article.urlPath) }}`, `{{ staccato_path('/assets/logo.png') }}`). Use it for every internal `href`/`src` so links keep working when the site is served from a sub-path — see "Hosting under a sub-path" below.
