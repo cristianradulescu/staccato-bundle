@@ -100,6 +100,44 @@ final class OutputPathResolverTest extends TestCase
     }
 
     #[Test]
+    public function itNormalizesTheBuildDirectory(): void
+    {
+        self::assertSame('var/out/site/about/index.html', $this->resolver->resolveOutputPath('/about/', 'var\\out\\site\\'));
+        self::assertSame('var/out/site/old.html', $this->resolver->resolveAliasOutputPath('/old.html', 'var/out/site/'));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidBuildDirectories(): iterable
+    {
+        yield 'empty' => [''];
+        yield 'parent segment' => ['../build'];
+        yield 'nested parent segment' => ['build/../..'];
+        yield 'empty segment' => ['var//build'];
+        yield 'absolute path' => ['/var/www/build'];
+    }
+
+    #[Test]
+    #[DataProvider('invalidBuildDirectories')]
+    public function itRejectsInvalidBuildDirectories(string $buildDirectory): void
+    {
+        $resolvers = [
+            fn (): string => $this->resolver->resolveOutputPath('/about/', $buildDirectory),
+            fn (): string => $this->resolver->resolveAliasOutputPath('/old.html', $buildDirectory),
+        ];
+
+        foreach ($resolvers as $resolve) {
+            try {
+                $resolve();
+                self::fail('Expected the build directory to be rejected.');
+            } catch (\RuntimeException $exception) {
+                self::assertSame(sprintf('Invalid build directory "%s".', $buildDirectory), $exception->getMessage());
+            }
+        }
+    }
+
+    #[Test]
     public function itThrowsOnInvalidSourceSlugSegment(): void
     {
         $this->expectException(\RuntimeException::class);

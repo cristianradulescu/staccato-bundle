@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Staccato\Service;
 
+use Staccato\Model\SiteConfig;
+
 final class OutputPathResolver
 {
     public function deriveSlugFromSourcePath(string $sourcePath): string
@@ -114,22 +116,12 @@ final class OutputPathResolver
         return $normalizedBuildDirectory.'/'.implode('/', $segments).'/index.html';
     }
 
+    /**
+     * SiteBuilder passes SiteConfig::$buildDirectory, which is already normalized; the check is for direct callers,
+     * since the returned path is written to.
+     */
     private function normalizeBuildDirectory(string $buildDirectory): string
     {
-        $normalized = trim(str_replace('\\', '/', $buildDirectory), '/');
-
-        if ('' === $normalized) {
-            throw new \RuntimeException('Build directory cannot be empty.');
-        }
-
-        $segments = explode('/', $normalized);
-
-        foreach ($segments as $segment) {
-            if ('' === $segment || '.' === $segment || '..' === $segment) {
-                throw new \RuntimeException(sprintf('Invalid build directory "%s".', $buildDirectory));
-            }
-        }
-
-        return $normalized;
+        return SiteConfig::normalizeDirectory($buildDirectory) ?? throw new \RuntimeException(sprintf('Invalid build directory "%s".', $buildDirectory));
     }
 }

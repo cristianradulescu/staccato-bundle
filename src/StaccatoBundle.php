@@ -109,7 +109,8 @@ final class StaccatoBundle extends AbstractBundle
     }
 
     /**
-     * A directory relative to %kernel.project_dir%, normalized without leading/trailing slashes.
+     * A directory relative to %kernel.project_dir%, normalized by SiteConfig::normalizeDirectory() (no leading/trailing
+     * slashes). Invalid values are rejected here, when the container is compiled, with an error naming the configuration key.
      */
     private static function projectDirectoryNode(string $name, string $default): ScalarNodeDefinition
     {
@@ -119,15 +120,8 @@ final class StaccatoBundle extends AbstractBundle
             ->defaultValue($default)
             ->validate()
                 ->always(static function (mixed $value) use ($name): string {
-                    $normalized = str_replace('\\', '/', trim((string) $value));
-                    $segments = explode('/', trim($normalized, '/'));
-                    $isAbsolute = str_starts_with($normalized, '/') || 1 === preg_match('#^[a-zA-Z]:/#', $normalized);
-
-                    if ($isAbsolute || [] !== array_intersect($segments, ['', '.', '..'])) {
-                        throw new \InvalidArgumentException(sprintf('The "staccato.%s" value "%s" must be a path relative to the project directory, without "." or ".." segments.', $name, $value));
-                    }
-
-                    return implode('/', $segments);
+                    return SiteConfig::normalizeDirectory((string) $value)
+                        ?? throw new \InvalidArgumentException(sprintf('The "staccato.%s" value "%s" must be a path relative to the project directory, without "." or ".." segments.', $name, $value));
                 })
             ->end();
 

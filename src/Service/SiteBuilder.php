@@ -41,10 +41,12 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     ): SiteBuildResult {
         $startedAt = microtime(true);
         $siteConfig = $this->siteConfig;
-        $contentDirectory = $siteConfig->contentDirectory;
+        // SiteConfig only holds normalized directories relative to the project directory (see
+        // SiteConfig::normalizeDirectory()), so they are joined to it as they are.
         $buildDirectory = $siteConfig->buildDirectory;
-        $assetsDirectory = $siteConfig->assetsDirectory;
-        $buildDirectoryPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
+        $buildDirectoryPath = $this->projectDir.'/'.$buildDirectory;
+        $assetsDirectoryPath = $this->projectDir.'/'.$siteConfig->assetsDirectory;
+        $staticDirectoryPath = $this->projectDir.'/'.$siteConfig->staticDirectory;
 
         // Configuration and content are loaded and validated before cleaning, so a build that
         // fails on them leaves the previous output in place instead of an emptied build directory.
@@ -53,7 +55,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         $sourceContentDirectory = $useFixtures
             ? $this->fixtureContentGenerator->generate()
-            : $this->normalizeRelativeDirectory($contentDirectory);
+            : $siteConfig->contentDirectory;
 
         $allPages = $this->contentLoader->loadPages($sourceContentDirectory);
         $detailPages = [];
@@ -74,7 +76,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $this->assertNoHomePaginationConflicts($homeOutputPaths, $detailOutputPaths);
         $aliasOutputPaths = $this->resolveAliasOutputPaths($detailPages, $buildDirectory, $detailOutputPaths, $homeOutputPaths);
 
-        $staticFiles = $this->findStaticFiles($siteConfig->staticDirectory);
+        $staticFiles = $this->findStaticFiles($staticDirectoryPath);
         $this->assertNoStaticFileConflicts($staticFiles, [...array_keys($detailOutputPaths), ...$homeOutputPaths, ...array_keys($aliasOutputPaths)], $buildDirectory);
 
         if ($clean) {
@@ -95,10 +97,10 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $articlePages = $this->sortedArticlePages($detailPages);
 
         $rssXml = $this->pageRenderer->renderRss($articlePages);
-        $this->filesystem->dumpFile($this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/rss.xml', $rssXml);
+        $this->filesystem->dumpFile($buildDirectoryPath.'/rss.xml', $rssXml);
 
         $this->filesystem->dumpFile(
-            $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/404.html',
+            $buildDirectoryPath.'/404.html',
             $this->pageRenderer->renderNotFound(),
         );
 
@@ -109,18 +111,18 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         )));
 
         $sitemapXml = $this->pageRenderer->renderSitemap($sitemapUrls);
-        $this->filesystem->dumpFile($this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory).'/sitemap.xml', $sitemapXml);
+        $this->filesystem->dumpFile($buildDirectoryPath.'/sitemap.xml', $sitemapXml);
 
         $this->writeRedirects($aliasOutputPaths, [...array_keys($detailOutputPaths), ...$homeOutputPaths], $buildDirectory);
 
-        $assetsCopied = $this->copyAssets($assetsDirectory, $buildDirectory);
+        $assetsCopied = $this->copyAssets($assetsDirectoryPath, $buildDirectoryPath);
 
         if ($siteConfig->includeDefaultStyles || null !== $highlighterCssPath || [] !== $stylesheetPaths) {
-            $this->copyStyles($buildDirectory, $siteConfig->includeDefaultStyles, $highlighterCssPath, $stylesheetPaths);
+            $this->copyStyles($buildDirectoryPath, $siteConfig->includeDefaultStyles, $highlighterCssPath, $stylesheetPaths);
             $assetsCopied = true;
         }
 
-        $this->copyStaticFiles($staticFiles, $siteConfig->staticDirectory, $buildDirectory);
+        $this->copyStaticFiles($staticFiles, $staticDirectoryPath, $buildDirectoryPath);
 
         $this->eventDispatcher->dispatch(new SiteBuiltEvent($buildDirectoryPath, $detailPages));
 
@@ -158,19 +160,14 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         return $seen;
     }
 
-    private function copyAssets(string $assetsDirectory, string $buildDirectory): bool
+    private function copyAssets(string $assetsDirectoryPath, string $buildDirectoryPath): bool
     {
-        $normalizedAssetsDirectory = $this->normalizeRelativeDirectory($assetsDirectory);
-        $sourceAssetsPath = $this->projectDir.'/'.$normalizedAssetsDirectory;
-        $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
-
-        if (!is_dir($sourceAssetsPath)) {
+        if (!is_dir($assetsDirectoryPath)) {
             return false;
         }
 
         // Always published under /assets/, whatever the source directory is called, so template links stay stable.
-        $targetAssetsPath = $targetBuildDirectory.'/assets';
-        $this->filesystem->mirror($sourceAssetsPath, $targetAssetsPath);
+        $this->filesystem->mirror($assetsDirectoryPath, $buildDirectoryPath.'/assets');
 
         return true;
     }
@@ -178,10 +175,9 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     /**
      * @param array<string, string> $stylesheetPaths target file name => absolute source path
      */
-    private function copyStyles(string $buildDirectory, bool $includeDefaultStyles, ?string $highlighterCssPath, array $stylesheetPaths): void
+    private function copyStyles(string $buildDirectoryPath, bool $includeDefaultStyles, ?string $highlighterCssPath, array $stylesheetPaths): void
     {
-        $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
-        $targetAssetsPath = $targetBuildDirectory.'/assets/staccato';
+        $targetAssetsPath = $buildDirectoryPath.'/assets/staccato';
         $this->filesystem->mkdir($targetAssetsPath);
 
         // Copy default staccato.css
@@ -308,7 +304,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
      */
     private function resolveAliasOutputPaths(array $pages, string $buildDirectory, array $detailOutputPaths, array $homeOutputPaths): array
     {
-        $buildPrefix = $this->normalizeRelativeDirectory($buildDirectory).'/';
+        $buildPrefix = $buildDirectory.'/';
         $reservedPaths = [];
 
         foreach ($detailOutputPaths as $outputPath => $sourcePath) {
@@ -360,7 +356,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
      */
     private function writeRedirects(array $aliasOutputPaths, array $generatedOutputPaths, string $buildDirectory): void
     {
-        $buildPrefix = $this->normalizeRelativeDirectory($buildDirectory).'/';
+        $buildPrefix = $buildDirectory.'/';
         $generatedPathsByLowercase = [];
 
         foreach ([...$generatedOutputPaths, $buildPrefix.'rss.xml', $buildPrefix.'sitemap.xml', $buildPrefix.'404.html'] as $outputPath) {
@@ -385,15 +381,13 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     /**
      * @return list<string> file paths relative to the static directory
      */
-    private function findStaticFiles(string $staticDirectory): array
+    private function findStaticFiles(string $staticDirectoryPath): array
     {
-        $sourceStaticPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($staticDirectory);
-
-        if (!is_dir($sourceStaticPath)) {
+        if (!is_dir($staticDirectoryPath)) {
             return [];
         }
 
-        $finder = (new Finder())->files()->in($sourceStaticPath)->ignoreDotFiles(false)->ignoreVCS(true)->sortByName();
+        $finder = (new Finder())->files()->in($staticDirectoryPath)->ignoreDotFiles(false)->ignoreVCS(true)->sortByName();
         $files = [];
 
         foreach ($finder as $file) {
@@ -415,7 +409,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             return;
         }
 
-        $buildPrefix = $this->normalizeRelativeDirectory($buildDirectory).'/';
+        $buildPrefix = $buildDirectory.'/';
         $reservedPaths = ['rss.xml', 'sitemap.xml', '404.html', 'assets'];
 
         foreach ($generatedOutputPaths as $outputPath) {
@@ -434,13 +428,10 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     /**
      * @param list<string> $staticFiles
      */
-    private function copyStaticFiles(array $staticFiles, string $staticDirectory, string $buildDirectory): void
+    private function copyStaticFiles(array $staticFiles, string $staticDirectoryPath, string $buildDirectoryPath): void
     {
-        $sourceStaticPath = $this->projectDir.'/'.$this->normalizeRelativeDirectory($staticDirectory);
-        $targetBuildDirectory = $this->projectDir.'/'.$this->normalizeRelativeDirectory($buildDirectory);
-
         foreach ($staticFiles as $staticFile) {
-            $this->filesystem->copy($sourceStaticPath.'/'.$staticFile, $targetBuildDirectory.'/'.$staticFile, true);
+            $this->filesystem->copy($staticDirectoryPath.'/'.$staticFile, $buildDirectoryPath.'/'.$staticFile, true);
         }
     }
 
@@ -472,22 +463,5 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         );
 
         return $articles;
-    }
-
-    private function normalizeRelativeDirectory(string $directory): string
-    {
-        $normalized = trim(str_replace('\\', '/', $directory), '/');
-
-        if ('' === $normalized) {
-            throw new \RuntimeException('Directory cannot be empty.');
-        }
-
-        foreach (explode('/', $normalized) as $segment) {
-            if ('' === $segment || '.' === $segment || '..' === $segment) {
-                throw new \RuntimeException(sprintf('Invalid directory "%s".', $directory));
-            }
-        }
-
-        return $normalized;
     }
 }
