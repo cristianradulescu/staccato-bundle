@@ -397,3 +397,22 @@ final readonly class OldPaginationRedirectListener
 The same checks run in CI (`.github/workflows/ci.yml`) on every push to `main` and every pull request, and the tests also run against the lowest dependency versions `composer.json` allows.
 
 Tests boot a minimal Symfony test kernel (`tests/Fixtures/TestKernel.php`) registering `FrameworkBundle` + `TwigBundle` + `StaccatoBundle` to exercise the bundle's configuration and DI wiring and to render the default templates end-to-end, alongside plain unit tests for the content-loading and build services.
+
+### Trying a working copy in a site
+
+To see your changes in a real site, create one that installs the bundle from your checkout (run from the checkout's root; the site goes next to it):
+
+```bash
+bin/create-blog.sh --bundle-path . ../my-blog
+```
+
+Composer installs the bundle from a path repository by symlinking `vendor/cristianradulescu/staccato-bundle` to the checkout, so edits to the checkout are live in the site: rerun `php bin/console site:build` there to see them, with no reinstall or cache clear. Only a change to the bundle's `composer.json`, such as a new dependency, needs `composer update cristianradulescu/staccato-bundle` in the site. `site:build --env=prod` does not pick up edits to the bundle's templates or configuration until you run `php bin/console cache:clear --env=prod` (see "`site:build` command").
+
+To link the checkout into an existing app instead, run in the app's root:
+
+```bash
+composer config repositories.staccato '{"type": "path", "url": "/path/to/staccato-bundle"}'
+composer require 'cristianradulescu/staccato-bundle:*@dev'
+```
+
+`*@dev` is needed because the checkout's version is its branch name (`dev-<branch>`) and the path repository takes priority over Packagist. Then configure and build the site as in "Installation" above; a `config/packages/staccato.yaml` you create after the `composer require` needs one `php bin/console cache:clear` (see the note there).

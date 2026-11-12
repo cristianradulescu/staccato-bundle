@@ -20,6 +20,8 @@ Guidance for coding agents (Claude Code, Codex, etc.) working in this repository
 
 There is no `bin/console`/`site:build` to run directly in this repo — `site:build` is a service consumers get by requiring the bundle into their own app.
 
+Contributor documentation lives in README.md's "Developing this bundle" section (QA commands, CI, and trying a working copy in a site through a Composer path repository); add to it rather than starting a separate file.
+
 ## What Exists / What Doesn't
 - No GitHub Pages workflow here anymore (that was app/deployment concern, moved out with the rest of the site-hosting bits).
 - `.github/workflows/ci.yml` is CI for pushes to `main` and pull requests, on PHP 8.5: the `qa` job runs `composer validate --strict`, `composer install` from the committed lock, then `composer cs:check`, `composer stan` and `composer test` as separate steps; the `tests-lowest` job runs `composer test` after `composer update --prefer-lowest` to check the lower bounds in `composer.json`. Keep it in step with the `qa` script, and pin third-party actions to a commit SHA with the version in a trailing comment.

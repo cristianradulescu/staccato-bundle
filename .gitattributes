@@ -6,7 +6,6 @@
 /.php-cs-fixer.dist.php export-ignore
 /AGENTS.md              export-ignore
 /CLAUDE.md              export-ignore
-/DEVELOPMENT.md         export-ignore
 /bin/                   export-ignore
 /composer.lock          export-ignore
 /phpstan.neon.dist      export-ignore
