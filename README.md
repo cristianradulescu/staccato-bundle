@@ -6,7 +6,7 @@ This repository is the **engine** — a reusable `cristianradulescu/staccato-bun
 
 ## Requirements
 
-- PHP 8.5+
+- PHP 8.5+ with the `dom` extension (the `php8.5-xml` package on Debian/Ubuntu)
 - A Symfony 8.1+ application with `bin/console` to install the bundle into (e.g. one created from `symfony/skeleton`)
 
 `symfony/twig-bundle` is installed as a dependency of the bundle: it renders the default templates and makes them overridable (see "Customizing templates" below).

@@ -66,7 +66,8 @@ command -v php >/dev/null || fail "PHP is not installed (8.5 or newer is require
 command -v composer >/dev/null || fail "Composer is not installed, see https://getcomposer.org/download/"
 php -r 'exit(version_compare(PHP_VERSION, "8.5.0", ">=") ? 0 : 1);' \
     || fail "PHP 8.5 or newer is required, found $(php -r 'echo PHP_VERSION;')"
-for extension in ctype iconv; do
+# ctype and iconv are required by symfony/skeleton, dom by Staccato (php-xml on Debian/Ubuntu).
+for extension in ctype dom iconv; do
     php -r "exit(extension_loaded('$extension') ? 0 : 1);" || fail "the PHP $extension extension is required"
 done
 

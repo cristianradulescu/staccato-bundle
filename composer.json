@@ -19,8 +19,7 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.5",
-        "ext-ctype": "*",
-        "ext-iconv": "*",
+        "ext-dom": "*",
         "symfony/config": "^8.1",
         "symfony/console": "^8.1",
         "symfony/dependency-injection": "^8.1",
@@ -29,6 +28,7 @@
         "symfony/finder": "^8.1",
         "symfony/http-foundation": "^8.1.7",
         "symfony/http-kernel": "^8.1",
+        "symfony/polyfill-mbstring": "^1.0",
         "symfony/twig-bundle": "^8.1",
         "symfony/yaml": "^8.1.6",
         "tempest/highlight": "^2.29",
