@@ -68,6 +68,63 @@ final class SiteBuildCommandTest extends TestCase
     }
 
     #[Test]
+    public function itIncludesDraftsByDefaultInEnvironmentsOtherThanProd(): void
+    {
+        $this->siteBuilderMock
+            ->expects(self::once())
+            ->method('build')
+            ->with(true, true, false)
+            ->willReturn(new SiteBuildResult(3, 0, false, 60));
+
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'staging');
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertMatchesRegularExpression('/Draft pages included\s+yes\b/', $tester->getDisplay());
+    }
+
+    #[Test]
+    public function itExcludesDraftsWithNoDraftsFlagOutsideProd(): void
+    {
+        $this->siteBuilderMock
+            ->expects(self::once())
+            ->method('build')
+            ->with(true, false, false)
+            ->willReturn(new SiteBuildResult(2, 1, false, 70));
+
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'dev');
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([
+            '--no-drafts' => true,
+        ]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertMatchesRegularExpression('/Environment\s+dev\b/', $tester->getDisplay());
+        self::assertMatchesRegularExpression('/Draft pages included\s+no\b/', $tester->getDisplay());
+    }
+
+    #[Test]
+    public function itIncludesDraftsWithDraftsFlagInProd(): void
+    {
+        $this->siteBuilderMock
+            ->expects(self::once())
+            ->method('build')
+            ->with(true, true, false)
+            ->willReturn(new SiteBuildResult(3, 0, false, 90));
+
+        $command = new SiteBuildCommand($this->siteBuilder, $this->createSiteConfig(), 'prod');
+        $tester = new CommandTester($command);
+        $exitCode = $tester->execute([
+            '--drafts' => true,
+        ]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertMatchesRegularExpression('/Environment\s+prod\b/', $tester->getDisplay());
+        self::assertMatchesRegularExpression('/Draft pages included\s+yes\b/', $tester->getDisplay());
+    }
+
+    #[Test]
     public function itSupportsDisablingCleanWithFlag(): void
     {
         $this->siteBuilderMock

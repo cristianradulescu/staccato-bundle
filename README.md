@@ -250,13 +250,18 @@ Options:
 
 - `--clean` (default) cleans `build/` before generation; `--no-clean` keeps existing output.
 - `--use-fixtures` generates 35 Faker-based demo articles instead of reading `content/`. It needs the optional `fakerphp/faker` package: `composer require --dev fakerphp/faker`.
+- `--drafts` includes pages with `draft: true` and `--no-drafts` leaves them out, in any environment. Without either, the environment decides (see below).
 
 Environment behavior:
 
-- In `dev`, drafts are included.
-- In `prod`, drafts are excluded.
+- Without `--drafts` or `--no-drafts`, drafts are left out in `prod` and included in every other environment (`dev`, `test`, `staging`, ...).
+- In `prod`, Symfony runs with debug off and does not check its cache for changes: after a first build, changes to templates (including overrides in `templates/bundles/StaccatoBundle/`) and to configuration such as `config/packages/staccato.yaml` are not picked up until you run `php bin/console cache:clear --env=prod`. Content is read on every build either way. To preview the site without drafts while you edit templates or configuration, build in `dev` with `--no-drafts`.
 
 ```bash
+# Local preview without drafts; picks up template and configuration changes
+php bin/console site:build --no-drafts
+
+# Production build, e.g. in CI from a fresh checkout
 php bin/console site:build --env=prod
 ```
 

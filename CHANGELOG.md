@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+### Added
+- `site:build --drafts` / `--no-drafts`: include or leave out draft pages in any environment. Without either option nothing changes: drafts are left out in `prod` and included in every other environment. `--no-drafts` builds without drafts in `dev`, where template and configuration changes are picked up on every build; in `prod`, Symfony runs with debug off and keeps serving its cached container and templates until `cache:clear --env=prod`.
+
 ### Fixed
 - An unquoted front matter `date` without a UTC offset (`date: 2021-08-27` or `date: 2021-08-27 10:30:00`) is read in PHP's default time zone, like the quoted form. It was read as UTC, so with a default time zone west of UTC the page, the homepage listing, `rss.xml` and `article:published_time` showed the previous day. Dates with an explicit offset are unchanged.
 - Aliases that nest inside a generated file, or inside or around another alias written as an `.html` file, fail the build before the build directory is cleaned, like the other alias conflicts: `/rss.xml` and `/sitemap.xml` (written to `build/rss.xml/index.html` and `build/sitemap.xml/index.html`), anything under `/404.html/`, or `/old.html` together with `/old.html/page/`. They passed validation, and the build then failed halfway through writing, after the previous output had been removed.

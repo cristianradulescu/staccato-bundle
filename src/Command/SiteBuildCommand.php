@@ -44,6 +44,14 @@ final class SiteBuildCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Generate and build fixture content (35 Faker-based articles) instead of using the content directory.',
+            )
+            ->addOption(
+                'drafts',
+                null,
+                InputOption::VALUE_NEGATABLE,
+                'Include draft pages (--drafts) or leave them out (--no-drafts) in any environment. Without either, drafts are included unless the environment is "prod".',
+                // null, not a boolean, so that "not given" can be told apart from an explicit --drafts/--no-drafts.
+                null,
             );
     }
 
@@ -52,7 +60,8 @@ final class SiteBuildCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $clean = (bool) $input->getOption('clean');
         $useFixtures = (bool) $input->getOption('use-fixtures');
-        $includeDrafts = 'prod' !== $this->kernelEnvironment;
+        $drafts = $input->getOption('drafts');
+        $includeDrafts = null === $drafts ? 'prod' !== $this->kernelEnvironment : (bool) $drafts;
 
         try {
             $result = $this->siteBuilder->build(

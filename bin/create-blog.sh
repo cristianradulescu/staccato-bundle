@@ -134,7 +134,7 @@ date: $(date +%Y-%m-%d)
 draft: true
 ---
 Drafts are included when building in the \`dev\` environment and left out
-with \`--env=prod\`.
+with \`--no-drafts\` or \`--env=prod\`.
 EOF
 
 cat > content/about.md <<'EOF'
