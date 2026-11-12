@@ -123,6 +123,11 @@ final class ContentLoader
 
         try {
             $parsed = Yaml::parse($yaml);
+
+            // An unquoted date becomes a timestamp, which loses whether it had an offset: keep it as a date object instead.
+            if (is_array($parsed) && is_int($parsed['date'] ?? null)) {
+                $parsed['date'] = Yaml::parse($yaml, Yaml::PARSE_DATETIME)['date'];
+            }
         } catch (ParseException $exception) {
             throw new \RuntimeException(sprintf('Invalid YAML front matter in "%s": %s', $sourcePath, $exception->getMessage()), previous: $exception);
         }
@@ -184,6 +189,11 @@ final class ContentLoader
         }
 
         if ($date instanceof \DateTimeInterface) {
+            // YAML assumes UTC for a date without an offset; read it in the default time zone, as a quoted date is.
+            if ('UTC' === $date->format('e')) {
+                return new \DateTimeImmutable($date->format('Y-m-d H:i:s.u'));
+            }
+
             return \DateTimeImmutable::createFromInterface($date);
         }
 

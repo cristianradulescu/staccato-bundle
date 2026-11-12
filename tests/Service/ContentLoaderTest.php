@@ -13,15 +13,19 @@ use Staccato\Service\OutputPathResolver;
 final class ContentLoaderTest extends TestCase
 {
     private string $projectDir;
+    private string $defaultTimeZone;
 
     protected function setUp(): void
     {
         $this->projectDir = rtrim(sys_get_temp_dir(), '/').'/staccato-content-loader-'.bin2hex(random_bytes(8));
         mkdir($this->projectDir, 0777, true);
+        $this->defaultTimeZone = date_default_timezone_get();
     }
 
     protected function tearDown(): void
     {
+        date_default_timezone_set($this->defaultTimeZone);
+
         if (is_dir($this->projectDir)) {
             $this->removeDirectory($this->projectDir);
         }
@@ -298,6 +302,55 @@ final class ContentLoaderTest extends TestCase
         $this->expectExceptionMessage('Front matter key "date" in "broken-date.md" must be a valid date string.');
 
         $loader->loadPages();
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function datesWithoutOffset(): iterable
+    {
+        yield 'date' => ['2021-08-27', '2021-08-27 00:00:00'];
+        yield 'date-time' => ['2021-08-27 10:30:00', '2021-08-27 10:30:00'];
+        yield 'ISO 8601 date-time' => ['2021-08-27T10:30:00', '2021-08-27 10:30:00'];
+    }
+
+    #[Test]
+    #[DataProvider('datesWithoutOffset')]
+    public function itReadsAnUnquotedDateWithoutOffsetInTheDefaultTimeZoneLikeAQuotedOne(string $date, string $expectedLocalTime): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/a-unquoted.md', "---\ndate: ".$date."\n---\n# Unquoted");
+        file_put_contents($this->projectDir.'/content/b-quoted.md', "---\ndate: '".$date."'\n---\n# Quoted");
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertSame($expectedLocalTime.' America/New_York', $pages[0]->publishedAt?->format('Y-m-d H:i:s e'));
+        self::assertSame($pages[1]->publishedAt?->format('Y-m-d H:i:s e'), $pages[0]->publishedAt->format('Y-m-d H:i:s e'));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function datesWithOffset(): iterable
+    {
+        yield 'numeric offset' => ['2021-08-27T01:00:00+02:00', '2021-08-26T23:00:00+00:00'];
+        yield 'Z suffix' => ['2021-08-27T10:00:00Z', '2021-08-27T10:00:00+00:00'];
+    }
+
+    #[Test]
+    #[DataProvider('datesWithOffset')]
+    public function itKeepsTheInstantOfAnUnquotedDateWithAnOffset(string $date, string $expectedUtcTime): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/a-unquoted.md', "---\ndate: ".$date."\n---\n# Unquoted");
+        file_put_contents($this->projectDir.'/content/b-quoted.md', "---\ndate: '".$date."'\n---\n# Quoted");
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertSame($expectedUtcTime, $pages[0]->publishedAt?->setTimezone(new \DateTimeZone('UTC'))->format(DATE_ATOM));
+        self::assertSame($pages[1]->publishedAt?->getTimestamp(), $pages[0]->publishedAt->getTimestamp());
     }
 
     private function removeDirectory(string $path): void

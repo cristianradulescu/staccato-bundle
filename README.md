@@ -193,7 +193,7 @@ Supported Markdown front matter keys:
 
 - `title` (string)
 - `slug` (string)
-- `date` (string; parseable date)
+- `date` (string; parseable date, quoted or not; without a UTC offset it is read in PHP's default time zone)
 - `excerpt` (string)
 - `draft` (boolean)
 - `aliases` (list of URL paths; see "Redirects" below)

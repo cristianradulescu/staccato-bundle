@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+### Fixed
+- An unquoted front matter `date` without a UTC offset (`date: 2021-08-27` or `date: 2021-08-27 10:30:00`) is read in PHP's default time zone, like the quoted form. It was read as UTC, so with a default time zone west of UTC the page, the homepage listing, `rss.xml` and `article:published_time` showed the previous day. Dates with an explicit offset are unchanged.
+
 ## [0.2.0] - 2026-10-25
 
 ### Added
