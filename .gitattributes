@@ -1,6 +1,7 @@
 # Keep development-only files out of the dist archives Composer installs.
 /.editorconfig          export-ignore
 /.gitattributes         export-ignore
+/.github/               export-ignore
 /.gitignore             export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /AGENTS.md              export-ignore

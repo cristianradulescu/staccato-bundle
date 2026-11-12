@@ -22,6 +22,7 @@ There is no `bin/console`/`site:build` to run directly in this repo — `site:bu
 
 ## What Exists / What Doesn't
 - No GitHub Pages workflow here anymore (that was app/deployment concern, moved out with the rest of the site-hosting bits).
+- `.github/workflows/ci.yml` is CI for pushes to `main` and pull requests, on PHP 8.5: the `qa` job runs `composer validate --strict`, `composer install` from the committed lock, then `composer cs:check`, `composer stan` and `composer test` as separate steps; the `tests-lowest` job runs `composer test` after `composer update --prefer-lowest` to check the lower bounds in `composer.json`. Keep it in step with the `qa` script, and pin third-party actions to a commit SHA with the version in a trailing comment.
 - No controllers, no HTTP entrypoint, no app `Kernel.php` — this is a library, not a runnable app.
 - `bin/create-blog.sh` is a standalone, user-facing Bash script (not used by the bundle or tests) that scaffolds a new Symfony app with the bundle, sample content and a first build. It runs on users' machines, so keep it portable (no GNU-only `sed` flags etc.); `--bundle-path .` installs this checkout for local testing.
 - `bin/release.sh <version>` is the maintainer's release script: checks, `composer qa`, moves `[Unreleased]` in `CHANGELOG.md` under the version, commits `Release <version>`, tags `v<version>`, pushes and runs `gh release create`. `--dry-run` changes nothing. Never run it without `--dry-run` unless the user explicitly asks for a release.

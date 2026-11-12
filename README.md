@@ -1,5 +1,7 @@
 # Staccato
 
+[![CI](https://github.com/cristianradulescu/staccato-bundle/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cristianradulescu/staccato-bundle/actions/workflows/ci.yml)
+
 Staccato is a Symfony bundle that turns Markdown content into a static site: pages, a paginated homepage, an RSS feed, and a sitemap, all rendered with Twig.
 
 This repository is the **engine** — a reusable `cristianradulescu/staccato-bundle` package. It ships default templates and styling so you can focus on writing content instead of building a layout; it is meant to be required into a Symfony application (or a dedicated Staccato project skeleton, once published) that supplies content.
@@ -336,5 +338,7 @@ The event carries `buildDirectory` (absolute path) and `pages` (every page writt
 - `composer stan`
 - `composer test`
 - `composer qa` (runs all of the above)
+
+The same checks run in CI (`.github/workflows/ci.yml`) on every push to `main` and every pull request, and the tests also run against the lowest dependency versions `composer.json` allows.
 
 Tests boot a minimal Symfony test kernel (`tests/Fixtures/TestKernel.php`) registering `FrameworkBundle` + `TwigBundle` + `StaccatoBundle` to exercise the bundle's configuration and DI wiring and to render the default templates end-to-end, alongside plain unit tests for the content-loading and build services.

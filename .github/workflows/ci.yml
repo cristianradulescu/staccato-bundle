@@ -1,0 +1,79 @@
+# Runs the quality gate (the "qa" script in composer.json) on every push to main
+# and every pull request, plus the tests against the lowest allowed dependencies.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    name: Quality gate (locked dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: dom
+          coverage: none
+          tools: composer
+      - name: Get the Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Check code style
+        run: composer cs:check
+      - name: Run static analysis
+        run: composer stan
+      - name: Run tests
+        run: composer test
+
+  tests-lowest:
+    name: Tests (lowest dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: dom
+          coverage: none
+          tools: composer
+      - name: Get the Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-lowest-${{ hashFiles('composer.json') }}
+          restore-keys: ${{ runner.os }}-composer-
+      # Resolves the lowest versions composer.json allows instead of composer.lock.
+      # Composer skips versions with known security advisories, so this checks the
+      # lowest secure versions, which can be above the declared lower bounds.
+      - name: Install the lowest dependencies
+        run: composer update --prefer-lowest --no-interaction --no-progress --prefer-dist
+      # Only the tests: code style and static analysis depend on the tool versions,
+      # which are checked with the locked dependencies above.
+      - name: Run tests
+        run: composer test
