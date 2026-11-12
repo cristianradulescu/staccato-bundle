@@ -107,7 +107,6 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $sitemapUrls = array_values(array_unique(array_merge(
             $homeUrls,
             array_map(static fn (Page $page): string => $page->urlPath, $detailPages),
-            ['/rss.xml'],
         )));
 
         $sitemapXml = $this->pageRenderer->renderSitemap($sitemapUrls);

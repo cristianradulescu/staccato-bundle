@@ -666,7 +666,7 @@ final class SiteBuilderTest extends TestCase
         self::assertFileExists($this->projectDir.'/build/page/4/index.html');
         self::assertStringContainsString('<rss version="2.0">', (string) file_get_contents($this->projectDir.'/build/rss.xml'));
         self::assertStringContainsString('<loc>https://example.test/</loc>', (string) file_get_contents($this->projectDir.'/build/sitemap.xml'));
-        self::assertStringContainsString('<loc>https://example.test/rss.xml</loc>', (string) file_get_contents($this->projectDir.'/build/sitemap.xml'));
+        self::assertStringNotContainsString('rss.xml', (string) file_get_contents($this->projectDir.'/build/sitemap.xml'));
         self::assertStringContainsString('<loc>https://example.test/page/4/</loc>', (string) file_get_contents($this->projectDir.'/build/sitemap.xml'));
         self::assertSame(10, substr_count((string) file_get_contents($this->projectDir.'/build/index.html'), 'Read more -&gt;'));
         self::assertSame(10, substr_count((string) file_get_contents($this->projectDir.'/build/page/2/index.html'), 'Read more -&gt;'));

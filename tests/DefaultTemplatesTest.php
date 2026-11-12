@@ -628,6 +628,7 @@ final class DefaultTemplatesTest extends TestCase
             self::assertStringContainsString('<link rel="stylesheet" href="/repo/assets/staccato/staccato.css">', $html, $file);
             self::assertStringContainsString('<link rel="stylesheet" href="/repo/assets/staccato/highlighter.css">', $html, $file);
             self::assertStringContainsString('<link rel="stylesheet" href="/repo/assets/staccato/custom.css">', $html, $file);
+            self::assertStringContainsString('<link rel="alternate" type="application/rss+xml" title="Built Site" href="https://example.test/repo/rss.xml">', $html, $file);
         }
 
         self::assertStringContainsString('<title>Hello · Built Site</title>', $output['hello/index.html']);
@@ -637,7 +638,11 @@ final class DefaultTemplatesTest extends TestCase
         self::assertStringContainsString('<description>Built description</description>', $output['rss.xml']);
         self::assertStringContainsString('<link>https://example.test/repo/hello/</link>', $output['rss.xml']);
         self::assertMatchesRegularExpression('#<lastBuildDate>\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} [+-]\d{4}</lastBuildDate>#', $output['rss.xml']);
-        self::assertStringContainsString('<loc>https://example.test/repo/hello/</loc>', $output['sitemap.xml']);
+
+        // The feed is written and linked from every page's <head>, but it is not a page, so the sitemap leaves it out.
+        preg_match_all('#<loc>(.*?)</loc>#', $output['sitemap.xml'], $sitemapLocations);
+        self::assertSame(['https://example.test/repo/', 'https://example.test/repo/hello/'], $sitemapLocations[1]);
+        self::assertStringNotContainsString('rss.xml', $output['sitemap.xml']);
     }
 
     private function createPage(string $excerpt): Page

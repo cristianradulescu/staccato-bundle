@@ -168,7 +168,7 @@ Besides the `staccato` global, each template receives these variables, which ove
 | `404.html.twig` | the layout variables |
 | `redirect.html.twig` | `page`, the page an alias redirects to; no layout variables. It reads only `page.title` and `page.urlPath`, so a `SiteBuiltEvent` listener can render it with an array of just these two keys for redirects that are not page aliases (see "Adding files after a build"). |
 | `rss.xml.twig` | `articles` (the pages from `content/articles/`, newest first), `siteTitle`, `siteDescription`, `baseUrl` (`base_url` without a trailing slash), `generatedAt` (`\DateTimeImmutable`, the build time) |
-| `sitemap.xml.twig` | `urls` (site-relative paths of the homepage listings, every page and `/rss.xml`), `baseUrl` |
+| `sitemap.xml.twig` | `urls` (site-relative paths of the homepage listings and every page; the feed, aliases, `404.html` and static files are not listed), `baseUrl` |
 
 The layout variables, which the default `base.html.twig` reads: `siteTitle` (`title`), `footerText` (`footer_text`), `includeDefaultStyles` (`include_default_styles`), `includeHighlighterStyles` (whether `highlighter_css` is set) and `stylesheets` (the file names of the `stylesheets`, published under `/assets/staccato/`).
 
