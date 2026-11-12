@@ -9,8 +9,10 @@ use PHPUnit\Framework\TestCase;
 use Staccato\Model\Page;
 use Staccato\Model\PageListItem;
 use Staccato\Model\PaginatedHomeContext;
+use Staccato\Service\SiteBuilderInterface;
 use Staccato\Tests\Fixtures\TestKernel;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 
 final class DefaultTemplatesTest extends TestCase
@@ -548,6 +550,63 @@ final class DefaultTemplatesTest extends TestCase
 
         self::assertStringContainsString('<loc>https://example.test/</loc>', $xml);
         self::assertStringContainsString('<loc>https://example.test/about/</loc>', $xml);
+    }
+
+    #[Test]
+    public function itRendersTheSiteConfigurationIntoTheDefaultTemplatesOfABuild(): void
+    {
+        $projectDir = sys_get_temp_dir().'/staccato-default-templates-build-'.bin2hex(random_bytes(8));
+        $filesystem = new Filesystem();
+        $filesystem->dumpFile($projectDir.'/content/articles/hello.md', "---\ntitle: Hello\ndate: 2026-01-15\nexcerpt: Hello excerpt\n---\n# Hello");
+        $filesystem->dumpFile($projectDir.'/themes/custom.css', '.custom {}');
+        $filesystem->dumpFile($projectDir.'/themes/highlight.css', '.hl-keyword {}');
+
+        $kernel = new TestKernel('default_templates_build', [
+            'title' => 'Built Site',
+            'description' => 'Built description',
+            'base_url' => 'https://example.test/repo',
+            'footer_text' => 'Built footer',
+            'stylesheets' => ['themes/custom.css'],
+            'highlighter_css' => 'themes/highlight.css',
+        ], $projectDir);
+        $kernel->boot();
+
+        try {
+            /** @var ContainerInterface $testContainer */
+            $testContainer = $kernel->getContainer()->get('test.service_container');
+
+            /** @var SiteBuilderInterface $siteBuilder */
+            $siteBuilder = $testContainer->get(SiteBuilderInterface::class);
+            $siteBuilder->build();
+
+            $output = [];
+
+            foreach (['index.html', 'hello/index.html', '404.html', 'rss.xml', 'sitemap.xml'] as $file) {
+                $output[$file] = (string) file_get_contents($projectDir.'/build/'.$file);
+            }
+        } finally {
+            $kernel->shutdown();
+            $filesystem->remove($projectDir);
+        }
+
+        foreach (['index.html', 'hello/index.html', '404.html'] as $file) {
+            $html = $output[$file];
+
+            self::assertStringContainsString('<a class="site-title" href="/repo/">Built Site</a>', $html, $file);
+            self::assertStringContainsString('<p>Built footer</p>', $html, $file);
+            self::assertStringContainsString('<link rel="stylesheet" href="/repo/assets/staccato/staccato.css">', $html, $file);
+            self::assertStringContainsString('<link rel="stylesheet" href="/repo/assets/staccato/highlighter.css">', $html, $file);
+            self::assertStringContainsString('<link rel="stylesheet" href="/repo/assets/staccato/custom.css">', $html, $file);
+        }
+
+        self::assertStringContainsString('<title>Hello · Built Site</title>', $output['hello/index.html']);
+        self::assertStringContainsString('<title>Page not found · Built Site</title>', $output['404.html']);
+        self::assertStringContainsString('<title>Built Site</title>', $output['rss.xml']);
+        self::assertStringContainsString('<link>https://example.test/repo/</link>', $output['rss.xml']);
+        self::assertStringContainsString('<description>Built description</description>', $output['rss.xml']);
+        self::assertStringContainsString('<link>https://example.test/repo/hello/</link>', $output['rss.xml']);
+        self::assertMatchesRegularExpression('#<lastBuildDate>\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} [+-]\d{4}</lastBuildDate>#', $output['rss.xml']);
+        self::assertStringContainsString('<loc>https://example.test/repo/hello/</loc>', $output['sitemap.xml']);
     }
 
     private function createPage(string $excerpt): Page

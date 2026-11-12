@@ -6,55 +6,38 @@ namespace Staccato\Service;
 
 use Staccato\Model\Page;
 use Staccato\Model\PaginatedHomeContext;
+use Staccato\Model\SiteConfig;
 use Twig\Environment;
 
 final readonly class PageRenderer
 {
     public function __construct(
         private Environment $twig,
+        private SiteConfig $siteConfig,
+        private StylesheetResolver $stylesheetResolver,
     ) {
     }
 
-    /**
-     * @param list<string> $stylesheets file names copied into assets/staccato/
-     */
-    public function renderPage(Page $page, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, array $stylesheets = [], string $template = '@Staccato/page.html.twig'): string
+    public function renderPage(Page $page, string $template = '@Staccato/page.html.twig'): string
     {
-        return $this->twig->render($template, [
-            'page' => $page,
-            'siteTitle' => $siteTitle,
-            'footerText' => $footerText,
-            'includeDefaultStyles' => $includeDefaultStyles,
-            'includeHighlighterStyles' => $includeHighlighterStyles,
-            'stylesheets' => $stylesheets,
-        ]);
+        return $this->twig->render($template, ['page' => $page, ...$this->layoutContext()]);
     }
 
-    /**
-     * @param list<string> $stylesheets file names copied into assets/staccato/
-     */
-    public function renderHome(PaginatedHomeContext $home, string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, array $stylesheets = [], string $template = '@Staccato/home.html.twig'): string
+    public function renderHome(PaginatedHomeContext $home, string $template = '@Staccato/home.html.twig'): string
     {
-        return $this->twig->render($template, [
-            'home' => $home,
-            'siteTitle' => $siteTitle,
-            'footerText' => $footerText,
-            'includeDefaultStyles' => $includeDefaultStyles,
-            'includeHighlighterStyles' => $includeHighlighterStyles,
-            'stylesheets' => $stylesheets,
-        ]);
+        return $this->twig->render($template, ['home' => $home, ...$this->layoutContext()]);
     }
 
     /**
      * @param list<Page> $articles
      */
-    public function renderRss(array $articles, string $siteTitle, string $siteDescription, string $baseUrl, string $template = '@Staccato/rss.xml.twig'): string
+    public function renderRss(array $articles, string $template = '@Staccato/rss.xml.twig'): string
     {
         return $this->twig->render($template, [
             'articles' => $articles,
-            'siteTitle' => $siteTitle,
-            'siteDescription' => $siteDescription,
-            'baseUrl' => $baseUrl,
+            'siteTitle' => $this->siteConfig->title,
+            'siteDescription' => $this->siteConfig->description,
+            'baseUrl' => $this->siteConfig->baseUrl,
             'generatedAt' => new \DateTimeImmutable(),
         ]);
     }
@@ -62,11 +45,11 @@ final readonly class PageRenderer
     /**
      * @param list<string> $urls
      */
-    public function renderSitemap(array $urls, string $baseUrl, string $template = '@Staccato/sitemap.xml.twig'): string
+    public function renderSitemap(array $urls, string $template = '@Staccato/sitemap.xml.twig'): string
     {
         return $this->twig->render($template, [
             'urls' => $urls,
-            'baseUrl' => $baseUrl,
+            'baseUrl' => $this->siteConfig->baseUrl,
         ]);
     }
 
@@ -77,17 +60,26 @@ final readonly class PageRenderer
         ]);
     }
 
-    /**
-     * @param list<string> $stylesheets file names copied into assets/staccato/
-     */
-    public function renderNotFound(string $siteTitle, string $footerText, bool $includeDefaultStyles = true, bool $includeHighlighterStyles = false, array $stylesheets = [], string $template = '@Staccato/404.html.twig'): string
+    public function renderNotFound(string $template = '@Staccato/404.html.twig'): string
     {
-        return $this->twig->render($template, [
-            'siteTitle' => $siteTitle,
-            'footerText' => $footerText,
-            'includeDefaultStyles' => $includeDefaultStyles,
-            'includeHighlighterStyles' => $includeHighlighterStyles,
-            'stylesheets' => $stylesheets,
-        ]);
+        return $this->twig->render($template, $this->layoutContext());
+    }
+
+    /**
+     * The site-wide variables of the base.html.twig layout. They predate the "staccato" global and are kept, with the
+     * same names and values, because templates overridden by applications read them.
+     *
+     * @return array{siteTitle: string, footerText: string, includeDefaultStyles: bool, includeHighlighterStyles: bool, stylesheets: list<string>}
+     */
+    private function layoutContext(): array
+    {
+        return [
+            'siteTitle' => $this->siteConfig->title,
+            'footerText' => $this->siteConfig->footerText,
+            'includeDefaultStyles' => $this->siteConfig->includeDefaultStyles,
+            'includeHighlighterStyles' => null !== $this->siteConfig->highlighterCss,
+            // The file names SiteBuilder copies into assets/staccato/.
+            'stylesheets' => array_keys($this->stylesheetResolver->resolve()),
+        ];
     }
 }

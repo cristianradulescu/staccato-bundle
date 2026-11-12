@@ -14,6 +14,7 @@ use Staccato\Service\FixtureContentGenerator;
 use Staccato\Service\OutputPathResolver;
 use Staccato\Service\PageRenderer;
 use Staccato\Service\SiteBuilder;
+use Staccato\Service\StylesheetResolver;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
@@ -722,10 +723,11 @@ final class SiteBuilderTest extends TestCase
             '@Staccato/404.html.twig' => '<html><body>404</body></html>',
             '@Staccato/redirect.html.twig' => '<meta http-equiv="refresh" content="0; url={{ page.urlPath }}">',
         ]));
-        $renderer = new PageRenderer($twig);
+        $stylesheetResolver = new StylesheetResolver($this->projectDir, $siteConfig);
+        $renderer = new PageRenderer($twig, $siteConfig, $stylesheetResolver);
         $fixtureGenerator = new FixtureContentGenerator($this->projectDir, $filesystem);
 
-        return new SiteBuilder($this->projectDir, $this->defaultAssetsDir, $filesystem, $siteConfig, $loader, $fixtureGenerator, $resolver, $renderer, $eventDispatcher ?? new EventDispatcher());
+        return new SiteBuilder($this->projectDir, $this->defaultAssetsDir, $filesystem, $siteConfig, $loader, $fixtureGenerator, $resolver, $renderer, $eventDispatcher ?? new EventDispatcher(), $stylesheetResolver);
     }
 
     /**
