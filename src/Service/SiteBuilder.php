@@ -360,28 +360,35 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             $reservedPaths[$buildPrefix.$fileName] = sprintf('the generated "%s"', $fileName);
         }
 
+        $reservedPaths[$buildPrefix.'assets'] = 'the published assets';
         $aliasOutputPaths = [];
 
         foreach ($pages as $page) {
             foreach ($page->aliases as $alias) {
                 $outputPath = $this->outputPathResolver->resolveAliasOutputPath($alias, $buildDirectory);
 
-                $conflict = match (true) {
-                    isset($reservedPaths[$outputPath]) => $reservedPaths[$outputPath],
-                    isset($aliasOutputPaths[$outputPath]) => sprintf('an alias of "%s"', $aliasOutputPaths[$outputPath]->sourcePath),
-                    str_starts_with($outputPath, $buildPrefix.'assets/') => 'the published assets',
-                    default => null,
-                };
-
-                if (null !== $conflict) {
-                    throw new \RuntimeException(sprintf('Alias "%s" of "%s" conflicts with %s.', $alias, $page->sourcePath, $conflict));
+                foreach ($reservedPaths as $reservedPath => $conflict) {
+                    if (self::outputPathsCollide($outputPath, $reservedPath)) {
+                        throw new \RuntimeException(sprintf('Alias "%s" of "%s" conflicts with %s.', $alias, $page->sourcePath, $conflict));
+                    }
                 }
 
+                $reservedPaths[$outputPath] = sprintf('an alias of "%s"', $page->sourcePath);
                 $aliasOutputPaths[$outputPath] = $page;
             }
         }
 
         return $aliasOutputPaths;
+    }
+
+    /**
+     * Two outputs cannot both be written when they are the same path, or when one is a file the other needs as a
+     * directory ("rss.xml" and "rss.xml/index.html"). Directory-style outputs nest freely ("a/index.html" and
+     * "a/b/index.html"), since neither is inside the other.
+     */
+    private static function outputPathsCollide(string $path, string $otherPath): bool
+    {
+        return $path === $otherPath || str_starts_with($path, $otherPath.'/') || str_starts_with($otherPath, $path.'/');
     }
 
     /**
@@ -454,7 +461,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         foreach ($staticFiles as $staticFile) {
             foreach ($reservedPaths as $reservedPath) {
-                if ($staticFile === $reservedPath || str_starts_with($staticFile, $reservedPath.'/') || str_starts_with($reservedPath, $staticFile.'/')) {
+                if (self::outputPathsCollide($staticFile, $reservedPath)) {
                     throw new \RuntimeException(sprintf('Static file "%s" conflicts with the generated "%s" in the build directory.', $staticFile, $reservedPath));
                 }
             }

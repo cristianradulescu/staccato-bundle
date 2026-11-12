@@ -160,6 +160,13 @@ final class SiteBuilderTest extends TestCase
         yield 'index file of the homepage' => [['post.md' => "---\naliases: [/index.html]\n---\n# Post"], 'Alias "/index.html" of "post.md" conflicts with the homepage listing.'];
         yield 'alias of another page' => [['a.md' => "---\naliases: [/old/]\n---\n# A", 'b.md' => "---\naliases: [/old/]\n---\n# B"], 'Alias "/old/" of "b.md" conflicts with an alias of "a.md".'];
         yield 'published assets' => [['post.md' => "---\naliases: [/assets/old.html]\n---\n# Post"], 'Alias "/assets/old.html" of "post.md" conflicts with the published assets.'];
+        yield 'inside the feed' => [['post.md' => "---\naliases: [/rss.xml]\n---\n# Post"], 'Alias "/rss.xml/" of "post.md" conflicts with the generated "rss.xml".'];
+        yield 'inside the sitemap' => [['post.md' => "---\naliases: [/sitemap.xml]\n---\n# Post"], 'Alias "/sitemap.xml/" of "post.md" conflicts with the generated "sitemap.xml".'];
+        yield 'inside the not found page' => [['post.md' => "---\naliases: [/404.html/old.html]\n---\n# Post"], 'Alias "/404.html/old.html" of "post.md" conflicts with the generated "404.html".'];
+        yield 'inside the file of a page' => [['about.md' => '# About', 'post.md' => "---\naliases: [/about/index.html/old]\n---\n# Post"], 'Alias "/about/index.html/old/" of "post.md" conflicts with the page generated from "about.md".'];
+        yield 'inside an html alias of another page' => [['a.md' => "---\naliases: [/old.html]\n---\n# A", 'b.md' => "---\naliases: [/old.html/sub]\n---\n# B"], 'Alias "/old.html/sub/" of "b.md" conflicts with an alias of "a.md".'];
+        yield 'around an alias of another page' => [['a.md' => "---\naliases: [/old.html/sub]\n---\n# A", 'b.md' => "---\naliases: [/old.html]\n---\n# B"], 'Alias "/old.html" of "b.md" conflicts with an alias of "a.md".'];
+        yield 'inside an html alias of the same page' => [['post.md' => "---\naliases: [/old.html, /old.html/sub.html]\n---\n# Post"], 'Alias "/old.html/sub.html" of "post.md" conflicts with an alias of "post.md".'];
     }
 
     /**
@@ -188,6 +195,48 @@ final class SiteBuilderTest extends TestCase
         }
 
         self::assertFileExists($this->projectDir.'/build/previous.html');
+    }
+
+    #[Test]
+    public function itKeepsThePreviousBuildWhenAnAliasNestsInsideAGeneratedFile(): void
+    {
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles/post.md', '# Post');
+        mkdir($this->projectDir.'/static', 0777, true);
+        file_put_contents($this->projectDir.'/static/robots.txt', 'User-agent: *');
+        $this->createBuilder()->build();
+        $previousBuild = $this->buildDirectoryContents();
+
+        file_put_contents($this->projectDir.'/content/articles/post.md', "---\naliases: [/feed/, /rss.xml]\n---\n# Post");
+
+        try {
+            $this->createBuilder()->build();
+            self::fail('Expected the build to fail.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('Alias "/rss.xml/" of "articles/post.md" conflicts with the generated "rss.xml".', $exception->getMessage());
+        }
+
+        self::assertSame($previousBuild, $this->buildDirectoryContents());
+    }
+
+    #[Test]
+    public function itWritesAliasesNestedInsideDirectoryStyleOutputs(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/a.md', '# A');
+        // /rss.xml.html shares a string prefix with the feed without being inside it.
+        file_put_contents($this->projectDir.'/content/post.md', "---\naliases: [/a/b/, /old/, /old/sub.html, /rss.xml.html]\n---\n# Post");
+
+        $result = $this->createBuilder()->build();
+
+        self::assertSame(4, $result->redirectsGenerated);
+        self::assertStringContainsString('<h1>', (string) file_get_contents($this->projectDir.'/build/a/index.html'));
+        $expectedStub = '<meta http-equiv="refresh" content="0; url=/post/">';
+        self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/a/b/index.html'));
+        self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/old/index.html'));
+        self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/old/sub.html'));
+        self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/rss.xml.html'));
+        self::assertStringContainsString('<rss version="2.0">', (string) file_get_contents($this->projectDir.'/build/rss.xml'));
     }
 
     #[Test]
@@ -691,6 +740,24 @@ final class SiteBuilderTest extends TestCase
         }
 
         return $articles;
+    }
+
+    /**
+     * @return array<string, string> path relative to the build directory => file contents
+     */
+    private function buildDirectoryContents(): array
+    {
+        $buildDirectory = $this->projectDir.'/build';
+        $contents = [];
+
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($buildDirectory, \FilesystemIterator::SKIP_DOTS)) as $file) {
+            \assert($file instanceof \SplFileInfo);
+            $contents[substr($file->getPathname(), strlen($buildDirectory) + 1)] = (string) file_get_contents($file->getPathname());
+        }
+
+        ksort($contents);
+
+        return $contents;
     }
 
     private function removeDirectory(string $path): void

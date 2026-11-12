@@ -239,7 +239,7 @@ Each alias gets a small redirect page (`redirect.html.twig`: a meta refresh to t
 
 - An alias is a URL path starting with `/`. Unlike slugs it keeps its case and may contain dots, so old mixed-case URLs survive a migration.
 - A path ending in `.html` is written as that file (`/blog/github-pages.html` -> `build/blog/github-pages.html`); anything else is directory-style like page URLs (`/Old-Post` -> `build/Old-Post/index.html`).
-- An alias may not point at `/`, at another page, a homepage listing page, a generated file, anything under `/assets/`, another alias or a static file. Conflicts fail the build before the build directory is cleaned.
+- An alias may not point at `/`, at another page, a homepage listing page, a generated file, anything under `/assets/`, another alias or a static file. Nor may it need one of these files as a directory, or be a file one of them needs as a directory: `/rss.xml` would be written to `build/rss.xml/index.html`, inside the feed, and `/old.html` and `/old.html/page/` cannot both be aliases. Conflicts fail the build before the build directory is cleaned.
 - On a case-insensitive filesystem (macOS and Windows defaults), an alias that differs from its page's URL only by case is the same file as the page; the build fails rather than replace the page with a redirect to itself. Build on Linux or in CI to keep such aliases.
 
 Markdown is rendered with [`tempest/markdown`](https://github.com/tempestphp/markdown). Fenced code blocks with a language (```` ```php ````) are syntax-highlighted — pick a theme with `highlighter_css` — and headings get `id` attributes, so `#anchor` links work. When `excerpt` is missing, it is derived from the first ~220 characters of the page's text.
