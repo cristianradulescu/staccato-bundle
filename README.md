@@ -85,6 +85,20 @@ All keys are optional and live under the `staccato` root key:
 | `assets_dir` | relative path | `assets` |
 | `static_dir` | relative path | `static` |
 
+`base_url` is the absolute URL the site is published at, including any sub-path (see "Hosting under a sub-path"); canonical links, `og:url`, `rss.xml` and `sitemap.xml` are built from it. To use a different one per environment, e.g. a local preview URL for `site:build` and the deployed URL for `site:build --env=prod`, override it in a `when@prod` block:
+
+```yaml
+# config/packages/staccato.yaml
+staccato:
+    base_url: http://localhost:8000
+
+when@prod:
+    staccato:
+        base_url: https://user.github.io/my-repo
+```
+
+A `staccato:` key in `config/packages/prod/staccato.yaml` works the same way. `base_url: '%env(SITE_URL)%'` is not supported: `base_url` is validated when the container is compiled, while `%env()%` values are only read at runtime, so Symfony rejects it with `The path "staccato.base_url" cannot contain an environment variable when empty values are not allowed by definition and are validated.`
+
 `content_dir`, `build_dir`, `assets_dir` and `static_dir` are relative to your project root and may not contain `.` or `..` segments. Because the build directory is removed on every clean build, `build_dir` may not equal, contain, or sit inside `content_dir`, `assets_dir` or `static_dir`. Whatever `assets_dir` is called, its files are published under `build/assets/`, so links like `/assets/logo.png` keep working. Files in `static_dir` are published at the root of the build directory instead — see "Output layout".
 
 The rest of this README uses the default names (`content/`, `build/`, `assets/`).
@@ -157,7 +171,7 @@ The default templates prefix every internal link and stylesheet with it (`/my-re
 Two things to keep in mind:
 
 - Links written by hand inside Markdown content are not rewritten. Use relative links (`../other-article/`) or include the sub-path yourself.
-- With a sub-path `base_url`, previewing `build/` from a local web server's root breaks links. Serve it under the same sub-path, or set the sub-path `base_url` only for the environment you deploy (e.g. in `config/packages/prod/staccato.yaml`).
+- With a sub-path `base_url`, previewing `build/` from a local web server's root breaks links. Serve it under the same sub-path, or set the sub-path `base_url` only for the environment you deploy, in a `when@prod` block (see "Configuration reference").
 
 ## Styling and themes
 
