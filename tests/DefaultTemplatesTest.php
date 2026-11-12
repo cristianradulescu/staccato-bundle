@@ -513,6 +513,37 @@ final class DefaultTemplatesTest extends TestCase
         self::assertStringContainsString('<a href="/repo/about/">About</a>', $html);
     }
 
+    /**
+     * Applications render redirect.html.twig from SiteBuiltEvent listeners with only a title and a URL path, for
+     * redirects that are not page aliases (see the README), so the template must not read anything else of "page".
+     */
+    #[Test]
+    public function itRendersTheDefaultRedirectTemplateFromOnlyATitleAndAUrlPath(): void
+    {
+        $kernel = new TestKernel('default_templates_redirect_contract', ['base_url' => 'https://example.test/repo/']);
+        $kernel->boot();
+
+        try {
+            /** @var ContainerInterface $testContainer */
+            $testContainer = $kernel->getContainer()->get('test.service_container');
+
+            /** @var Environment $twig */
+            $twig = $testContainer->get(Environment::class);
+            // Reading any other key of the array, e.g. page.slug, then throws instead of rendering an empty string.
+            $twig->enableStrictVariables();
+
+            $html = $twig->render('@Staccato/redirect.html.twig', [
+                'page' => ['title' => 'Page 2', 'urlPath' => '/page/2/'],
+            ]);
+        } finally {
+            $kernel->shutdown();
+        }
+
+        self::assertStringContainsString('<link rel="canonical" href="https://example.test/repo/page/2/">', $html);
+        self::assertStringContainsString('<meta http-equiv="refresh" content="0; url=/repo/page/2/">', $html);
+        self::assertStringContainsString('<a href="/repo/page/2/">Page 2</a>', $html);
+    }
+
     #[Test]
     public function itRendersTheDefaultRssTemplate(): void
     {

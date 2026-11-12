@@ -1,3 +1,8 @@
+{#-
+    Contract: besides the staccato global and the staccato_url()/staccato_path() functions, this template reads only
+    page.title and page.urlPath (the page redirected to). It may be rendered with any object or array providing them,
+    e.g. from a SiteBuiltEvent listener writing redirects that are not page aliases, so do not read anything else.
+-#}
 <!DOCTYPE html>
 <html lang="{{ staccato.language }}">
 <head>

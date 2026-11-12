@@ -159,6 +159,25 @@ The default `base.html.twig` renders `<html lang>` from `language`, a `<meta nam
 
 It also renders social metadata for link previews: `og:site_name`, `og:type`, `og:title`, `og:description` (same as the `description` block), `og:url` and a `twitter:card` of type `summary`. Pages use their own title and URL; dated pages are typed `article` and get an `article:published_time`. The values come from the `og_type`, `og_title` and `og_meta` (page-specific tags such as `og:url`) blocks; override `social_meta` to replace the whole set, e.g. to add an `og:image`.
 
+Besides the `staccato` global, each template receives these variables, which overrides can rely on:
+
+| Template | Variables |
+|---|---|
+| `page.html.twig` | `page`, and the layout variables |
+| `home.html.twig` | `home`, and the layout variables |
+| `404.html.twig` | the layout variables |
+| `redirect.html.twig` | `page`, the page an alias redirects to; no layout variables. It reads only `page.title` and `page.urlPath`, so a `SiteBuiltEvent` listener can render it with an array of just these two keys for redirects that are not page aliases (see "Adding files after a build"). |
+| `rss.xml.twig` | `articles` (the pages from `content/articles/`, newest first), `siteTitle`, `siteDescription`, `baseUrl` (`base_url` without a trailing slash), `generatedAt` (`\DateTimeImmutable`, the build time) |
+| `sitemap.xml.twig` | `urls` (site-relative paths of the homepage listings, every page and `/rss.xml`), `baseUrl` |
+
+The layout variables, which the default `base.html.twig` reads: `siteTitle` (`title`), `footerText` (`footer_text`), `includeDefaultStyles` (`include_default_styles`), `includeHighlighterStyles` (whether `highlighter_css` is set) and `stylesheets` (the file names of the `stylesheets`, published under `/assets/staccato/`).
+
+| Object | Properties |
+|---|---|
+| `page`, items of `articles` | `title`, `urlPath` (e.g. `/docs/setup/`), `publishedAt` (`\DateTimeImmutable` from `date`, or `null`), `excerpt`, `html` (the rendered Markdown; print it with the `raw` filter), `meta` (see "Writing content"), `slug` (e.g. `docs/setup`), `aliases` (URL paths), `draft`, `sourcePath` (relative to `content/`, e.g. `docs/setup.md`) |
+| `home` | `articles` (the listing items of this page), `currentPage`, `totalPages`, `previousPageUrl` and `nextPageUrl` (site-relative paths, `null` on the first and the last page), `urlPath` (`/`, `/page/2/`, ...) |
+| items of `home.articles` | `title`, `urlPath`, `publishedAt`, `excerpt`, `meta`, as on `page` |
+
 ## Hosting under a sub-path
 
 If the site is served from a sub-path rather than a domain root — e.g. a GitHub Pages project site at `https://user.github.io/my-repo/` — include that path in `base_url`:
@@ -258,6 +277,8 @@ Each alias gets a small redirect page (`redirect.html.twig`: a meta refresh to t
 - An alias may not point at `/`, at another page, a homepage listing page, a generated file, anything under `/assets/`, another alias or a static file. Nor may it need one of these files as a directory, or be a file one of them needs as a directory: `/rss.xml` would be written to `build/rss.xml/index.html`, inside the feed, and `/old.html` and `/old.html/page/` cannot both be aliases. Conflicts fail the build before the build directory is cleaned.
 - On a case-insensitive filesystem (macOS and Windows defaults), an alias that differs from its page's URL only by case is the same file as the page; the build fails rather than replace the page with a redirect to itself. Build on Linux or in CI to keep such aliases.
 
+Old URLs that are not a page's, such as a previous generator's pagination, can get the same redirect pages from a listener: see "Adding files after a build".
+
 Markdown is rendered with [`tempest/markdown`](https://github.com/tempestphp/markdown). Fenced code blocks with a language (```` ```php ````) are syntax-highlighted — pick a theme with `highlighter_css` — and headings get `id` attributes, so `#anchor` links work. When `excerpt` is missing, it is derived from the first ~220 characters of the page's text.
 
 ## `site:build` command
@@ -324,6 +345,38 @@ final class SearchIndexListener
 ```
 
 The event carries `buildDirectory` (absolute path) and `pages` (every page written by this build, drafts only when they were included). Inject `Staccato\Model\SiteConfig` into the listener if you need the site configuration. The event is not dispatched when the build fails. An exception thrown by a listener fails `site:build`, but the files written so far stay in the build directory. Unlike static files, files written by listeners are not checked for conflicts, so a listener can deliberately replace a generated file.
+
+To write redirects that are not page aliases, such as the pagination URLs of a previous generator, render `@Staccato/redirect.html.twig` with a `page` of just a `title` and the `urlPath` to redirect to:
+
+```php
+// src/EventListener/OldPaginationRedirectListener.php
+namespace App\EventListener;
+
+use Staccato\Event\SiteBuiltEvent;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\Filesystem\Filesystem;
+use Twig\Environment;
+
+#[AsEventListener]
+final readonly class OldPaginationRedirectListener
+{
+    public function __construct(private Environment $twig)
+    {
+    }
+
+    public function __invoke(SiteBuiltEvent $event): void
+    {
+        // The old site paginated at /blog/2/, /blog/3/, ...; Staccato writes /page/2/, /page/3/, ...
+        for ($number = 2; is_file($event->buildDirectory.'/page/'.$number.'/index.html'); ++$number) {
+            $html = $this->twig->render('@Staccato/redirect.html.twig', [
+                'page' => ['title' => 'Page '.$number, 'urlPath' => '/page/'.$number.'/'],
+            ]);
+
+            (new Filesystem())->dumpFile($event->buildDirectory.'/blog/'.$number.'/index.html', $html);
+        }
+    }
+}
+```
 
 ## Homepage and pagination
 
