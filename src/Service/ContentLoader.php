@@ -63,7 +63,8 @@ final class ContentLoader
         $pages = [];
 
         foreach ($finder as $file) {
-            $relativePath = $file->getRelativePathname();
+            // Finder joins path segments with "\" on Windows; the checks below and Page::$sourcePath expect "/".
+            $relativePath = str_replace('\\', '/', $file->getRelativePathname());
             $this->assertNotIndexFile($relativePath);
             $source = $file->getContents();
             [$frontMatter, $markdownBody] = $this->extractFrontMatter($source, $relativePath);
@@ -323,13 +324,11 @@ final class ContentLoader
      */
     private function assertNotIndexFile(string $sourcePath): void
     {
-        $normalized = str_replace('\\', '/', $sourcePath);
-
-        if ('index.md' !== strtolower(basename($normalized))) {
+        if ('index.md' !== strtolower(basename($sourcePath))) {
             return;
         }
 
-        $directory = dirname($normalized);
+        $directory = dirname($sourcePath);
 
         if ('.' === $directory || 'articles' === $directory) {
             throw new \RuntimeException(sprintf('Content file "%s" is not supported: index.md files are not used, and the homepage is generated from the articles/ directory. Remove the file or rename it.', $sourcePath));
@@ -340,8 +339,7 @@ final class ContentLoader
 
     private function humanizePathTitle(string $sourcePath): string
     {
-        $normalized = str_replace('\\', '/', $sourcePath);
-        $withoutExtension = preg_replace('/\.md$/', '', $normalized);
+        $withoutExtension = preg_replace('/\.md$/', '', $sourcePath);
 
         if (null === $withoutExtension || '' === $withoutExtension) {
             return 'Untitled';

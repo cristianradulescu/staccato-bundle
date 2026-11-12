@@ -129,6 +129,23 @@ final class ContentLoaderTest extends TestCase
         self::assertSame(['/docs/', '/docs/setup/'], array_map(static fn ($page): string => $page->urlPath, $pages));
     }
 
+    #[Test]
+    public function itUsesForwardSlashesInTheSourcePathWhenFinderReturnsBackslashes(): void
+    {
+        // On Windows this writes articles/hello.md and Finder returns "articles\hello.md". On Linux and macOS
+        // it is a single file literally named "articles\hello.md", which gives the loader that same string.
+        mkdir($this->projectDir.'/content/articles', 0777, true);
+        file_put_contents($this->projectDir.'/content/articles\\hello.md', "# Hello\n");
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertCount(1, $pages);
+        self::assertSame('articles/hello.md', $pages[0]->sourcePath);
+        self::assertSame('Hello', $pages[0]->title);
+        self::assertSame('hello', $pages[0]->slug);
+        self::assertSame('/hello/', $pages[0]->urlPath);
+    }
+
     /**
      * @return iterable<string, array{string, string}>
      */

@@ -7,8 +7,9 @@ namespace Staccato\Model;
 final readonly class Page
 {
     /**
-     * @param array<string, mixed> $meta    front matter keys other than the ones Staccato interprets itself
-     * @param list<string>         $aliases old URL paths that redirect to this page
+     * @param string               $sourcePath path of the Markdown file relative to the content directory, always with "/" as the separator (also on Windows), e.g. "articles/hello.md"
+     * @param array<string, mixed> $meta       front matter keys other than the ones Staccato interprets itself
+     * @param list<string>         $aliases    old URL paths that redirect to this page
      */
     public function __construct(
         public string $sourcePath,
