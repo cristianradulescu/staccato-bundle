@@ -110,6 +110,12 @@ staccato:
     base_url: $(yaml_quote "$base_url")
     description: $(yaml_quote "$title, built with Staccato.")
 EOF
+# Composer's cache:clear auto-script built the container before this file
+# existed, and a container only notices changes to the config files it was
+# built from. Remove it so the next command builds it with this file. Not
+# cache:clear: it skips the rebuild when the container was written in the
+# second it starts, which is likely this soon after the auto-script.
+rm -rf var/cache
 
 mkdir -p content/articles assets static
 
@@ -195,7 +201,7 @@ EOF
 
 if [[ "$build" -eq 1 ]]; then
     step "Building the site"
-    php bin/console site:build --env=prod
+    php bin/console site:build --no-drafts
 fi
 
 step "Done"
@@ -209,10 +215,11 @@ Your blog lives in $directory:
   config/packages/staccato.yaml
   .github/workflows/pages.yml   GitHub Pages deployment (delete it if you host elsewhere)
 
-Rebuild after editing content:
+Rebuild after editing content, templates or configuration (leave out
+--no-drafts to include drafts):
 
   cd $directory
-  php bin/console site:build --env=prod
+  php bin/console site:build --no-drafts
 
 Preview the result:
 

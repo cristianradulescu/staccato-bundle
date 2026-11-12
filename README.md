@@ -53,6 +53,8 @@ staccato:
     footer_text: Built with Staccato
 ```
 
+If you create this file after `composer require`, run `php bin/console cache:clear` once: Composer's `cache:clear` auto-script built the `dev` container before the file existed, and that container does not notice new files in `config/packages/`, so until then `site:build` in `dev` uses the default configuration (a site titled `Staccato`), however often you edit the file.
+
 The consuming application only needs to provide:
 
 - `content/` — Markdown source files
