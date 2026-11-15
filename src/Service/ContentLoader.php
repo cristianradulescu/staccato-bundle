@@ -188,11 +188,12 @@ final class ContentLoader
             return self::readInDefaultTimeZone($date);
         }
 
-        if (is_int($date)) {
-            return (new \DateTimeImmutable())->setTimestamp($date);
+        // A bare number such as `date: 2021` is rejected, not read as a Unix timestamp that would date the page in 1970.
+        if (!is_string($date)) {
+            throw new \RuntimeException(sprintf('Front matter key "date" in "%s" must be a date such as 2021-08-27, got %s.', $sourcePath, self::describeFrontMatterValue($date)));
         }
 
-        if (!is_string($date) || '' === trim($date)) {
+        if ('' === trim($date)) {
             throw new \RuntimeException(sprintf('Front matter key "date" in "%s" must be a non-empty string.', $sourcePath));
         }
 
@@ -268,6 +269,19 @@ final class ContentLoader
         }
 
         return \DateTimeImmutable::createFromInterface($date);
+    }
+
+    /**
+     * Describes a front matter value for an error message: a scalar as written (`2021`, `2021.5`, `true`), an array
+     * as "a list" or "a map".
+     */
+    private static function describeFrontMatterValue(mixed $value): string
+    {
+        return match (true) {
+            is_int($value), is_float($value), is_bool($value) => var_export($value, true),
+            is_array($value) => array_is_list($value) ? 'a list' : 'a map',
+            default => get_debug_type($value),
+        };
     }
 
     /**

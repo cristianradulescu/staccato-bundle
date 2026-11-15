@@ -323,6 +323,46 @@ final class ContentLoaderTest extends TestCase
         $loader->loadPages();
     }
 
+    #[Test]
+    public function itThrowsOnEmptyDateFrontMatter(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\ndate: '  '\n---\n# Post");
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Front matter key "date" in "post.md" must be a non-empty string.');
+
+        $this->createLoader()->loadPages();
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function dateFrontMatterThatIsNotADate(): iterable
+    {
+        yield 'year' => ['date: 2021', '2021'];
+        yield 'Unix timestamp' => ['date: 1700000000', '1700000000'];
+        yield 'float' => ['date: 2021.5', '2021.5'];
+        yield 'boolean' => ['date: true', 'true'];
+        yield 'list' => ['date: [2021-01-01]', 'a list'];
+        yield 'map' => ['date: {a: 1}', 'a map'];
+    }
+
+    #[Test]
+    #[DataProvider('dateFrontMatterThatIsNotADate')]
+    public function itRejectsDateFrontMatterThatIsNotADate(string $frontMatter, string $expectedValue): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\n".$frontMatter."\n---\n# Post");
+
+        try {
+            $this->createLoader()->loadPages();
+            self::fail('Expected the date to be rejected.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('Front matter key "date" in "post.md" must be a date such as 2021-08-27, got '.$expectedValue.'.', $exception->getMessage());
+        }
+    }
+
     /**
      * @return iterable<string, array{string, string}>
      */
