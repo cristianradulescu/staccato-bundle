@@ -123,12 +123,7 @@ final class ContentLoader
         }
 
         try {
-            $parsed = Yaml::parse($yaml);
-
-            // An unquoted date becomes a timestamp, which loses whether it had an offset: keep it as a date object instead.
-            if (is_array($parsed) && is_int($parsed['date'] ?? null)) {
-                $parsed['date'] = Yaml::parse($yaml, Yaml::PARSE_DATETIME)['date'];
-            }
+            $parsed = Yaml::parse($yaml, Yaml::PARSE_DATETIME);
         } catch (ParseException $exception) {
             throw new \RuntimeException(sprintf('Invalid YAML front matter in "%s": %s', $sourcePath, $exception->getMessage()), previous: $exception);
         }
@@ -190,12 +185,7 @@ final class ContentLoader
         }
 
         if ($date instanceof \DateTimeInterface) {
-            // YAML assumes UTC for a date without an offset; read it in the default time zone, as a quoted date is.
-            if ('UTC' === $date->format('e')) {
-                return new \DateTimeImmutable($date->format('Y-m-d H:i:s.u'));
-            }
-
-            return \DateTimeImmutable::createFromInterface($date);
+            return self::readInDefaultTimeZone($date);
         }
 
         if (is_int($date)) {
@@ -250,7 +240,34 @@ final class ContentLoader
      */
     private function resolveMeta(array $frontMatter): array
     {
-        return array_diff_key($frontMatter, array_flip(self::RESERVED_FRONT_MATTER_KEYS));
+        $meta = array_diff_key($frontMatter, array_flip(self::RESERVED_FRONT_MATTER_KEYS));
+
+        // Templates receive an unquoted date as a Unix timestamp, at any depth: an int, or a float with fractional seconds.
+        array_walk_recursive($meta, static function (mixed &$value): void {
+            if (!$value instanceof \DateTimeInterface) {
+                return;
+            }
+
+            $date = self::readInDefaultTimeZone($value);
+            $microseconds = (int) $date->format('u');
+            $value = 0 === $microseconds ? $date->getTimestamp() : $date->getTimestamp() + $microseconds / 1e6;
+        });
+
+        return $meta;
+    }
+
+    /**
+     * YAML assumes UTC for an unquoted date without an offset: its time zone is then "UTC", while an explicit offset is
+     * kept as "Z" or "+02:00". Read it like a quoted date, as the same wall-clock time in the default time zone; a date
+     * with an offset keeps its instant.
+     */
+    private static function readInDefaultTimeZone(\DateTimeInterface $date): \DateTimeImmutable
+    {
+        if ('UTC' === $date->format('e')) {
+            return new \DateTimeImmutable($date->format('Y-m-d H:i:s.u'));
+        }
+
+        return \DateTimeImmutable::createFromInterface($date);
     }
 
     /**

@@ -250,7 +250,7 @@ tags: [php, symfony]
 {% for tag in page.meta.tags ?? [] %}<span class="tag">{{ tag }}</span>{% endfor %}
 ```
 
-Values keep their YAML types; an unquoted date such as `updated: 2026-04-01` becomes a Unix timestamp, which Twig's `date` filter accepts.
+Values keep their YAML types; an unquoted date such as `updated: 2026-04-01` becomes a Unix timestamp, read in PHP's default time zone like `date`, so Twig's `date` filter shows the day as written.
 
 Coming from Jekyll, Hugo or Jigsaw? There `description` usually feeds the `<meta name="description">` and the post summary; in Staccato that is `excerpt`. A `description` key is only available as `page.meta.description`.
 

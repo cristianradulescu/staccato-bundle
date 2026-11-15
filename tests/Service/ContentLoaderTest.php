@@ -278,6 +278,8 @@ final class ContentLoaderTest extends TestCase
         yield 'map' => ["aliases:\n  old: /old/", 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
         yield 'number in list' => ['aliases: [/old/, 42]', 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
         yield 'relative path' => ['aliases: [old/]', 'Alias "old/" in "post.md" must be a URL path starting with "/".'];
+        yield 'unquoted date' => ['aliases: 2021-01-01', 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
+        yield 'unquoted date in list' => ['aliases: [/old/, 2021-01-01]', 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
     }
 
     #[Test]
@@ -368,6 +370,130 @@ final class ContentLoaderTest extends TestCase
 
         self::assertSame($expectedUtcTime, $pages[0]->publishedAt?->setTimezone(new \DateTimeZone('UTC'))->format(DATE_ATOM));
         self::assertSame($pages[1]->publishedAt?->getTimestamp(), $pages[0]->publishedAt->getTimestamp());
+    }
+
+    #[Test]
+    public function itKeepsTheFractionalSecondsOfAnUnquotedDate(): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\ndate: 2021-08-27 10:00:00.5\n---\n# Post");
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertSame('2021-08-27 10:00:00.500000 America/New_York', $pages[0]->publishedAt?->format('Y-m-d H:i:s.u e'));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function reservedKeysWithAnUnquotedDate(): iterable
+    {
+        yield 'title' => ['title', 'must be a non-empty string.'];
+        yield 'slug' => ['slug', 'must be a non-empty string.'];
+        yield 'excerpt' => ['excerpt', 'must be a non-empty string.'];
+        yield 'draft' => ['draft', 'must be a boolean.'];
+    }
+
+    #[Test]
+    #[DataProvider('reservedKeysWithAnUnquotedDate')]
+    public function itRejectsAnUnquotedDateInAReservedKeyThatIsNotADate(string $key, string $expectedRequirement): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\n".$key.": 2021-01-01\n---\n# Post");
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Front matter key "'.$key.'" in "post.md" '.$expectedRequirement);
+
+        $this->createLoader()->loadPages();
+    }
+
+    #[Test]
+    #[DataProvider('datesWithoutOffset')]
+    public function itReadsAnUnquotedMetaDateWithoutOffsetInTheDefaultTimeZone(string $date, string $expectedLocalTime): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\nupdated: ".$date."\n---\n# Post");
+
+        $updated = $this->createLoader()->loadPages()[0]->meta['updated'];
+
+        self::assertIsInt($updated);
+        self::assertSame($expectedLocalTime, date('Y-m-d H:i:s', $updated));
+    }
+
+    #[Test]
+    public function itConvertsUnquotedMetaDatesAtAnyDepth(): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents(
+            $this->projectDir.'/content/post.md',
+            "---\nupdated: 2026-04-01\nrevisions: [2026-01-15, 2026-02-20 08:30:00]\nreview:\n  by: Jane\n  due: 2026-05-01\n  rounds:\n    - at: 2026-06-01\n---\n# Post",
+        );
+
+        $meta = $this->createLoader()->loadPages()[0]->meta;
+
+        self::assertSame('April 1, 2026', date('F j, Y', $meta['updated']));
+        self::assertSame([
+            'updated' => strtotime('2026-04-01 00:00:00'),
+            'revisions' => [strtotime('2026-01-15 00:00:00'), strtotime('2026-02-20 08:30:00')],
+            'review' => [
+                'by' => 'Jane',
+                'due' => strtotime('2026-05-01 00:00:00'),
+                'rounds' => [['at' => strtotime('2026-06-01 00:00:00')]],
+            ],
+        ], $meta);
+    }
+
+    #[Test]
+    #[DataProvider('datesWithOffset')]
+    public function itKeepsTheInstantOfAnUnquotedMetaDateWithAnOffset(string $date, string $expectedUtcTime): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\nupdated: ".$date."\n---\n# Post");
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertSame((new \DateTimeImmutable($expectedUtcTime))->getTimestamp(), $pages[0]->meta['updated']);
+    }
+
+    #[Test]
+    public function itKeepsTheFractionalSecondsOfAnUnquotedMetaDate(): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/post.md', "---\nupdated: 2021-08-27 10:00:00.25\n---\n# Post");
+
+        $updated = $this->createLoader()->loadPages()[0]->meta['updated'];
+
+        self::assertIsFloat($updated);
+        self::assertSame(strtotime('2021-08-27 10:00:00') + 0.25, $updated);
+    }
+
+    #[Test]
+    public function itKeepsMetaValuesThatAreNotUnquotedDates(): void
+    {
+        date_default_timezone_set('America/New_York');
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents(
+            $this->projectDir.'/content/post.md',
+            "---\nauthor: Jane\nsingle: '2026-04-01'\ndouble: \"2026-04-01 10:30:00\"\nyear: 2026\nrating: 4.5\nfeatured: true\nseries: ~\ntags: [php, '2026-04-01', 3]\n---\n# Post",
+        );
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertSame([
+            'author' => 'Jane',
+            'single' => '2026-04-01',
+            'double' => '2026-04-01 10:30:00',
+            'year' => 2026,
+            'rating' => 4.5,
+            'featured' => true,
+            'series' => null,
+            'tags' => ['php', '2026-04-01', 3],
+        ], $pages[0]->meta);
     }
 
     private function removeDirectory(string $path): void
