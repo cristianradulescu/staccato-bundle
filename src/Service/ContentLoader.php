@@ -384,18 +384,21 @@ final class ContentLoader
             return 'Untitled';
         }
 
-        return $this->titleCaseAscii($candidate);
+        return $this->titleCase($candidate);
     }
 
-    private function titleCaseAscii(string $value): string
+    /**
+     * Lowercases $value and uppercases the first character of each word, outside ASCII too ("știri" -> "Știri").
+     */
+    private function titleCase(string $value): string
     {
-        $words = preg_split('/\s+/', strtolower($value));
+        $words = preg_split('/\s+/u', mb_strtolower($value, 'UTF-8'));
 
         if (false === $words) {
             return $value;
         }
 
-        $titledWords = array_map(static fn (string $word): string => ucfirst($word), $words);
+        $titledWords = array_map(static fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1, 'UTF-8'), 'UTF-8').mb_substr($word, 1, null, 'UTF-8'), $words);
 
         return implode(' ', $titledWords);
     }

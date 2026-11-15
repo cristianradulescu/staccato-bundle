@@ -80,6 +80,95 @@ final class OutputPathResolverTest extends TestCase
         self::assertSame('docs/getting-started', $this->resolver->deriveSlugFromSourcePath('docs/getting-started.md'));
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function slugsSpelledInAscii(): iterable
+    {
+        yield 'ascii words' => ['Docs/Getting Started', 'docs/getting-started'];
+        yield 'ascii punctuation' => ['  --C++ & Rust: v1.2--  ', 'c-rust-v1-2'];
+        yield 'ascii underscore' => ['hello_world', 'hello_world'];
+        yield 'romanian comma below' => ['știri', 'stiri'];
+        yield 'uppercase romanian' => ['Știri-Noi', 'stiri-noi'];
+        yield 'french accents' => ['café-crème', 'cafe-creme'];
+        yield 'german sharp s' => ['Straße', 'strasse'];
+        yield 'danish ligature and slashed o' => ['Ærø', 'aero'];
+        yield 'polish stroke and acute' => ['Łódź', 'lodz'];
+        yield 'turkish dotted and dotless i' => ['İstanbul-ılık', 'istanbul-ilik'];
+        yield 'typographic apostrophe' => ['don’t-stop', 'don-t-stop'];
+        yield 'en dash between spaces' => ['a – b', 'a-b'];
+        yield 'non-ascii space and symbol' => ["\u{00A0}🎉\u{00A0}party\u{2026}", 'party'];
+        yield 'nested segments' => ['docs/Ünïcödé/page', 'docs/unicode/page'];
+        yield 'decomposed (NFD) input' => ["s\u{0326}tiri", 'stiri'];
+    }
+
+    #[Test]
+    #[DataProvider('slugsSpelledInAscii')]
+    public function itSpellsSlugsInAscii(string $rawSlug, string $expectedSlug): void
+    {
+        self::assertSame($expectedSlug, $this->resolver->normalizeSlug($rawSlug, 'post.md'));
+        self::assertSame($expectedSlug, $this->resolver->deriveSlugFromSourcePath($rawSlug.'.md'));
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function slugsWithoutAsciiSpelling(): iterable
+    {
+        yield 'only letters without an ascii equivalent' => [
+            '日本',
+            'Cannot derive an ASCII slug from "日本.md": "日" has no ASCII equivalent. Set a "slug" in its front matter.',
+            'Cannot derive an ASCII slug from the front matter "slug" of "post.md": "日" has no ASCII equivalent. Write the "slug" in ASCII letters and digits.',
+        ];
+        yield 'letters without an ascii equivalent next to ascii' => [
+            '日本-travel',
+            'Cannot derive an ASCII slug from "日本-travel.md": "日" has no ASCII equivalent. Set a "slug" in its front matter.',
+            'Cannot derive an ASCII slug from the front matter "slug" of "post.md": "日" has no ASCII equivalent. Write the "slug" in ASCII letters and digits.',
+        ];
+        yield 'cyrillic' => [
+            'привет',
+            'Cannot derive an ASCII slug from "привет.md": "п" has no ASCII equivalent. Set a "slug" in its front matter.',
+            'Cannot derive an ASCII slug from the front matter "slug" of "post.md": "п" has no ASCII equivalent. Write the "slug" in ASCII letters and digits.',
+        ];
+        yield 'character named as written' => [
+            'news/Йога',
+            'Cannot derive an ASCII slug from "news/Йога.md": "Й" has no ASCII equivalent. Set a "slug" in its front matter.',
+            'Cannot derive an ASCII slug from the front matter "slug" of "post.md": "Й" has no ASCII equivalent. Write the "slug" in ASCII letters and digits.',
+        ];
+        yield 'non-ascii digit' => [
+            'top-١٠',
+            'Cannot derive an ASCII slug from "top-١٠.md": "١" has no ASCII equivalent. Set a "slug" in its front matter.',
+            'Cannot derive an ASCII slug from the front matter "slug" of "post.md": "١" has no ASCII equivalent. Write the "slug" in ASCII letters and digits.',
+        ];
+        yield 'invalid utf-8' => [
+            "\xC3\x28",
+            "Cannot derive a slug from \"\xC3\x28.md\": the path is not valid UTF-8. Rename the file, or set a \"slug\" in its front matter.",
+            'Cannot derive a slug from the front matter "slug" of "post.md": it is not valid UTF-8.',
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('slugsWithoutAsciiSpelling')]
+    public function itRejectsSlugsThatCannotBeSpelledInAscii(string $rawSlug, string $expectedDerivedMessage, string $expectedFrontMatterMessage): void
+    {
+        $attempts = [
+            [fn (): string => $this->resolver->deriveSlugFromSourcePath($rawSlug.'.md'), $expectedDerivedMessage],
+            [fn (): string => $this->resolver->normalizeSlug($rawSlug, 'post.md'), $expectedFrontMatterMessage],
+        ];
+
+        foreach ($attempts as [$attempt, $expectedMessage]) {
+            $message = null;
+
+            try {
+                $attempt();
+            } catch (\RuntimeException $exception) {
+                $message = $exception->getMessage();
+            }
+
+            self::assertSame($expectedMessage, $message);
+        }
+    }
+
     #[Test]
     public function itThrowsWhenSlugResolvesToTheHomepage(): void
     {

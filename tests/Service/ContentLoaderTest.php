@@ -116,6 +116,55 @@ final class ContentLoaderTest extends TestCase
         self::assertNull($pages[0]->publishedAt);
     }
 
+    /**
+     * @return iterable<string, array{string, string, string, string}>
+     */
+    public static function nonAsciiNames(): iterable
+    {
+        yield 'romanian file name' => ['știri.md', "# Știri\n", 'Știri', '/stiri/'];
+        yield 'french file name' => ['café-crème.md', "# Café\n", 'Café Crème', '/cafe-creme/'];
+        yield 'front matter slug' => ['news.md', "---\nslug: Știri Noi\n---\n# News\n", 'News', '/stiri-noi/'];
+        yield 'front matter slug for a name without ascii equivalent' => ['日本.md', "---\nslug: nihon\n---\n# Nihon\n", '日本', '/nihon/'];
+    }
+
+    #[Test]
+    #[DataProvider('nonAsciiNames')]
+    public function itSpellsSlugsDerivedFromNonAsciiNamesInAscii(string $fileName, string $source, string $expectedTitle, string $expectedUrlPath): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/'.$fileName, $source);
+
+        $pages = $this->createLoader()->loadPages();
+
+        self::assertCount(1, $pages);
+        self::assertSame($expectedTitle, $pages[0]->title);
+        self::assertSame($expectedUrlPath, $pages[0]->urlPath);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function namesWithoutAsciiSpelling(): iterable
+    {
+        yield 'file name' => ['日本.md', "# Nihon\n", 'Cannot derive an ASCII slug from "日本.md": "日" has no ASCII equivalent. Set a "slug" in its front matter.'];
+        yield 'front matter slug' => ['trip.md', "---\nslug: 東京\n---\n# Trip\n", 'Cannot derive an ASCII slug from the front matter "slug" of "trip.md": "東" has no ASCII equivalent. Write the "slug" in ASCII letters and digits.'];
+    }
+
+    #[Test]
+    #[DataProvider('namesWithoutAsciiSpelling')]
+    public function itRejectsSlugsThatCannotBeSpelledInAscii(string $fileName, string $source, string $expectedMessage): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/'.$fileName, $source);
+
+        $loader = $this->createLoader();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage($expectedMessage);
+
+        $loader->loadPages();
+    }
+
     #[Test]
     public function itMapsSiblingMarkdownFileToDirectoryUrl(): void
     {

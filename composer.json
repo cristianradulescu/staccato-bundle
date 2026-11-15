@@ -28,6 +28,7 @@
         "symfony/finder": "^8.1",
         "symfony/http-foundation": "^8.1.11",
         "symfony/http-kernel": "^8.1.11",
+        "symfony/polyfill-intl-normalizer": "^1.0",
         "symfony/polyfill-mbstring": "^1.0",
         "symfony/twig-bundle": "^8.1",
         "symfony/yaml": "^8.1.11",

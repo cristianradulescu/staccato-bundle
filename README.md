@@ -229,7 +229,7 @@ For full control over the markup, override `base.html.twig` as described in "Cus
 Supported Markdown front matter keys:
 
 - `title` (string)
-- `slug` (string)
+- `slug` (string; spelled in ASCII like a derived slug, see the notes below)
 - `date` (a parseable date such as `2021-08-27`, quoted or not, but not a bare number such as `2021`; without a UTC offset it is read in PHP's default time zone)
 - `excerpt` (string)
 - `draft` (boolean)
@@ -257,6 +257,7 @@ Coming from Jekyll, Hugo or Jigsaw? There `description` usually feeds the `<meta
 Notes:
 
 - Missing `title`/`slug` are derived from the source path: `content/about.md` -> `/about/`, `content/docs/setup.md` -> `/docs/setup/`. Files in `content/articles/` drop the `articles/` prefix (`content/articles/hello.md` -> `/hello/`).
+- Slugs, derived or set in `slug`, are lowercase ASCII: accented letters lose their accents and a few other letters are spelled out (`știri.md` -> `/stiri/`, `café-crème.md` -> `/cafe-creme/`, `ß` -> `ss`, `æ` -> `ae`, `ø` -> `o`, `ł` -> `l`), and other characters outside `a-z`, `0-9`, `-` and `_` become `-`. A letter or digit with no ASCII equivalent, as in `日本-travel.md`, fails the build with a hint to set an ASCII `slug`. A derived title keeps the letters as written (`știri.md` gets the title `Știri`).
 - To give a directory its own page, add a sibling file: `content/docs.md` -> `/docs/`, next to `content/docs/setup.md` -> `/docs/setup/`.
 - `index.md` files are not supported and fail the build with a hint on how to rename them. The homepage `/` is always generated from `content/articles/`, so a `slug` resolving to `/` fails the build too.
 - Homepage listing only includes files from `content/articles/`.
