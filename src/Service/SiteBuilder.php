@@ -345,10 +345,24 @@ final readonly class SiteBuilder implements SiteBuilderInterface
      * Two outputs cannot both be written when they are the same path, or when one is a file the other needs as a
      * directory ("rss.xml" and "rss.xml/index.html"). Directory-style outputs nest freely ("a/index.html" and
      * "a/b/index.html"), since neither is inside the other.
+     *
+     * The nesting check ignores case: on a case-insensitive filesystem (the macOS and Windows default),
+     * "RSS.xml/index.html" needs the "rss.xml" file as a directory, and writing it would fail halfway through the
+     * build, after the clean step. The equality check does not: an alias that differs from its page's URL only by
+     * case ("/About/" for "/about/") is the usual case after a migration, works on a case-sensitive filesystem, and
+     * is detected by writeRedirects() on the others. strtolower() is enough, because aliases and generated paths are
+     * ASCII-only past the build directory, which both sides share, so only ASCII letters can make a path match one.
      */
     private static function outputPathsCollide(string $path, string $otherPath): bool
     {
-        return $path === $otherPath || str_starts_with($path, $otherPath.'/') || str_starts_with($otherPath, $path.'/');
+        if ($path === $otherPath) {
+            return true;
+        }
+
+        $path = strtolower($path);
+        $otherPath = strtolower($otherPath);
+
+        return str_starts_with($path, $otherPath.'/') || str_starts_with($otherPath, $path.'/');
     }
 
     /**
@@ -399,7 +413,10 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     }
 
     /**
-     * Static files are published at the build root, so they must not replace or nest inside a generated file.
+     * Static files are published at the build root, so they must not replace or nest inside a generated file. Unlike
+     * an alias, a static file may not differ from a generated file only by case either: static files are not a
+     * migration feature, and on a case-insensitive filesystem "RSS.xml", copied last, would replace the generated
+     * "rss.xml" without an error.
      *
      * @param list<string> $staticFiles
      * @param list<string> $generatedOutputPaths output paths prefixed with the build directory
@@ -419,7 +436,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
 
         foreach ($staticFiles as $staticFile) {
             foreach ($reservedPaths as $reservedPath) {
-                if (self::outputPathsCollide($staticFile, $reservedPath)) {
+                if (self::outputPathsCollide($staticFile, $reservedPath) || strtolower($staticFile) === strtolower($reservedPath)) {
                     throw new \RuntimeException(sprintf('Static file "%s" conflicts with the generated "%s" in the build directory.', $staticFile, $reservedPath));
                 }
             }

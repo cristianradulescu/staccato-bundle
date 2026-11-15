@@ -135,6 +135,8 @@ final class SiteBuilderTest extends TestCase
     public function itWritesRedirectStubsForAliases(): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
+        // The first alias differs from the page's URL only by case: allowed, and written next to the page on a
+        // case-sensitive filesystem (writeRedirects() fails on the others).
         file_put_contents($this->projectDir.'/content/articles/2022-08-20-github-pages.md', "---\naliases: ['/2022-08-20-Github-pages/', /2022/08/github-pages.html]\n---\n# Pages");
         file_put_contents($this->projectDir.'/content/articles/draft.md', "---\ndraft: true\naliases: [/old-draft/]\n---\n# Draft");
 
@@ -168,6 +170,12 @@ final class SiteBuilderTest extends TestCase
         yield 'inside an html alias of another page' => [['a.md' => "---\naliases: [/old.html]\n---\n# A", 'b.md' => "---\naliases: [/old.html/sub]\n---\n# B"], 'Alias "/old.html/sub/" of "b.md" conflicts with an alias of "a.md".'];
         yield 'around an alias of another page' => [['a.md' => "---\naliases: [/old.html/sub]\n---\n# A", 'b.md' => "---\naliases: [/old.html]\n---\n# B"], 'Alias "/old.html" of "b.md" conflicts with an alias of "a.md".'];
         yield 'inside an html alias of the same page' => [['post.md' => "---\naliases: [/old.html, /old.html/sub.html]\n---\n# Post"], 'Alias "/old.html/sub.html" of "post.md" conflicts with an alias of "post.md".'];
+        // Nesting ignores case: on a case-insensitive filesystem these are inside the file they differ from by case.
+        yield 'inside the feed in another case' => [['post.md' => "---\naliases: [/RSS.xml]\n---\n# Post"], 'Alias "/RSS.xml/" of "post.md" conflicts with the generated "rss.xml".'];
+        yield 'inside the not found page in another case' => [['post.md' => "---\naliases: [/404.HTML/x/]\n---\n# Post"], 'Alias "/404.HTML/x/" of "post.md" conflicts with the generated "404.html".'];
+        yield 'published assets in another case' => [['post.md' => "---\naliases: [/Assets/x/]\n---\n# Post"], 'Alias "/Assets/x/" of "post.md" conflicts with the published assets.'];
+        yield 'inside the file of a page in another case' => [['about.md' => '# About', 'post.md' => "---\naliases: [/About/index.html/old]\n---\n# Post"], 'Alias "/About/index.html/old/" of "post.md" conflicts with the page generated from "about.md".'];
+        yield 'inside an html alias of another page in another case' => [['a.md' => "---\naliases: [/Old.html]\n---\n# A", 'b.md' => "---\naliases: [/OLD.html/page/]\n---\n# B"], 'Alias "/OLD.html/page/" of "b.md" conflicts with an alias of "a.md".'];
     }
 
     /**
@@ -197,8 +205,18 @@ final class SiteBuilderTest extends TestCase
         self::assertFileExists($this->projectDir.'/build/previous.html');
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function aliasesNestedInsideTheFeed(): iterable
+    {
+        yield 'same case' => ['/rss.xml', 'Alias "/rss.xml/" of "articles/post.md" conflicts with the generated "rss.xml".'];
+        yield 'other case' => ['/RSS.xml', 'Alias "/RSS.xml/" of "articles/post.md" conflicts with the generated "rss.xml".'];
+    }
+
     #[Test]
-    public function itKeepsThePreviousBuildWhenAnAliasNestsInsideAGeneratedFile(): void
+    #[DataProvider('aliasesNestedInsideTheFeed')]
+    public function itKeepsThePreviousBuildWhenAnAliasNestsInsideAGeneratedFile(string $alias, string $expectedMessage): void
     {
         mkdir($this->projectDir.'/content/articles', 0777, true);
         file_put_contents($this->projectDir.'/content/articles/post.md', '# Post');
@@ -207,13 +225,13 @@ final class SiteBuilderTest extends TestCase
         $this->createBuilder()->build();
         $previousBuild = $this->directoryContents('build');
 
-        file_put_contents($this->projectDir.'/content/articles/post.md', "---\naliases: [/feed/, /rss.xml]\n---\n# Post");
+        file_put_contents($this->projectDir.'/content/articles/post.md', sprintf("---\naliases: [/feed/, %s]\n---\n# Post", $alias));
 
         try {
             $this->createBuilder()->build();
             self::fail('Expected the build to fail.');
         } catch (\RuntimeException $exception) {
-            self::assertSame('Alias "/rss.xml/" of "articles/post.md" conflicts with the generated "rss.xml".', $exception->getMessage());
+            self::assertSame($expectedMessage, $exception->getMessage());
         }
 
         self::assertSame($previousBuild, $this->directoryContents('build'));
@@ -224,15 +242,19 @@ final class SiteBuilderTest extends TestCase
     {
         mkdir($this->projectDir.'/content', 0777, true);
         file_put_contents($this->projectDir.'/content/a.md', '# A');
-        // /rss.xml.html shares a string prefix with the feed without being inside it.
-        file_put_contents($this->projectDir.'/content/post.md', "---\naliases: [/a/b/, /old/, /old/sub.html, /rss.xml.html]\n---\n# Post");
+        file_put_contents($this->projectDir.'/content/docs.md', '# Docs');
+        // /rss.xml.html shares a string prefix with the feed without being inside it. /Docs/Setup/ differs from the
+        // /docs/ page by case, and nests inside it on a case-insensitive filesystem as /a/b/ does inside /a/.
+        file_put_contents($this->projectDir.'/content/post.md', "---\naliases: [/a/b/, /Docs/Setup/, /old/, /old/sub.html, /rss.xml.html]\n---\n# Post");
 
         $result = $this->createBuilder()->build();
 
-        self::assertSame(4, $result->redirectsGenerated);
+        self::assertSame(5, $result->redirectsGenerated);
         self::assertStringContainsString('<h1>', (string) file_get_contents($this->projectDir.'/build/a/index.html'));
+        self::assertStringContainsString('<h1>', (string) file_get_contents($this->projectDir.'/build/docs/index.html'));
         $expectedStub = '<meta http-equiv="refresh" content="0; url=/post/">';
         self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/a/b/index.html'));
+        self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/Docs/Setup/index.html'));
         self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/old/index.html'));
         self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/old/sub.html'));
         self::assertSame($expectedStub, file_get_contents($this->projectDir.'/build/rss.xml.html'));
@@ -358,6 +380,11 @@ final class SiteBuilderTest extends TestCase
         yield 'content page' => ['about/index.html', '"about/index.html"'];
         yield 'file where a page directory goes' => ['about', '"about/index.html"'];
         yield 'published assets' => ['assets/logo.png', '"assets"'];
+        // Unlike aliases, static files may not differ from a generated file only by case either.
+        yield 'feed in another case' => ['RSS.xml', '"rss.xml"'];
+        yield 'content page in another case' => ['About/index.html', '"about/index.html"'];
+        yield 'inside the feed in another case' => ['RSS.xml/feed', '"rss.xml"'];
+        yield 'published assets in another case' => ['Assets/x.txt', '"assets"'];
     }
 
     #[Test]
