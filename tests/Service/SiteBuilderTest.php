@@ -185,8 +185,7 @@ final class SiteBuilderTest extends TestCase
             file_put_contents($this->projectDir.'/content/'.$path, $contents);
         }
 
-        mkdir($this->projectDir.'/build', 0777, true);
-        file_put_contents($this->projectDir.'/build/previous.html', 'previous');
+        $this->writePreviousBuild();
 
         try {
             $this->createBuilder()->build();
@@ -206,7 +205,7 @@ final class SiteBuilderTest extends TestCase
         mkdir($this->projectDir.'/static', 0777, true);
         file_put_contents($this->projectDir.'/static/robots.txt', 'User-agent: *');
         $this->createBuilder()->build();
-        $previousBuild = $this->buildDirectoryContents();
+        $previousBuild = $this->directoryContents('build');
 
         file_put_contents($this->projectDir.'/content/articles/post.md', "---\naliases: [/feed/, /rss.xml]\n---\n# Post");
 
@@ -217,7 +216,7 @@ final class SiteBuilderTest extends TestCase
             self::assertSame('Alias "/rss.xml/" of "articles/post.md" conflicts with the generated "rss.xml".', $exception->getMessage());
         }
 
-        self::assertSame($previousBuild, $this->buildDirectoryContents());
+        self::assertSame($previousBuild, $this->directoryContents('build'));
     }
 
     #[Test]
@@ -369,8 +368,7 @@ final class SiteBuilderTest extends TestCase
         file_put_contents($this->projectDir.'/content/about.md', '# About');
         mkdir(dirname($this->projectDir.'/static/'.$staticFile), 0777, true);
         file_put_contents($this->projectDir.'/static/'.$staticFile, 'static');
-        mkdir($this->projectDir.'/build', 0777, true);
-        file_put_contents($this->projectDir.'/build/previous.html', 'previous');
+        $this->writePreviousBuild();
 
         try {
             $this->createBuilder()->build();
@@ -438,8 +436,7 @@ final class SiteBuilderTest extends TestCase
     #[Test]
     public function itFailsBeforeCleaningWhenHighlighterStylesAreMissing(): void
     {
-        mkdir($this->projectDir.'/build', 0777, true);
-        file_put_contents($this->projectDir.'/build/previous.html', 'previous build');
+        $this->writePreviousBuild();
 
         $builder = $this->createBuilder(highlighterCss: 'themes/missing.css');
 
@@ -470,8 +467,7 @@ final class SiteBuilderTest extends TestCase
     #[Test]
     public function itFailsBeforeCleaningWhenAStylesheetIsMissing(): void
     {
-        mkdir($this->projectDir.'/build', 0777, true);
-        file_put_contents($this->projectDir.'/build/previous.html', 'previous build');
+        $this->writePreviousBuild();
 
         $builder = $this->createBuilder(stylesheets: ['themes/missing.css']);
 
@@ -538,16 +534,16 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{array<string, string>}>
+     * @return iterable<string, array{array<string, string>, string}>
      */
     public static function invalidContent(): iterable
     {
-        yield 'invalid front matter' => [['articles/broken.md' => "---\ntitle: [invalid\n---\nbody"]];
-        yield 'index file' => [['index.md' => '# Home']];
+        yield 'invalid front matter' => [['articles/broken.md' => "---\ntitle: [invalid\n---\nbody"], 'Invalid YAML front matter in "articles/broken.md": '];
+        yield 'index file' => [['index.md' => '# Home'], 'Content file "index.md" is not supported'];
         yield 'duplicate output path' => [[
             'articles/about.md' => '# About',
             'articles/about-us.md' => "---\nslug: about\n---\n# About Us",
-        ]];
+        ], 'Duplicate output path "build/about/index.html"'];
 
         $paginationConflict = ['page/2.md' => '# Reserved by pagination'];
 
@@ -555,7 +551,7 @@ final class SiteBuilderTest extends TestCase
             $paginationConflict[sprintf('articles/article-%02d.md', $index)] = sprintf('# Article %02d', $index);
         }
 
-        yield 'home pagination conflict' => [$paginationConflict];
+        yield 'home pagination conflict' => [$paginationConflict, 'Home pagination path "build/page/2/index.html" conflicts with content file "page/2.md".'];
     }
 
     /**
@@ -563,10 +559,9 @@ final class SiteBuilderTest extends TestCase
      */
     #[Test]
     #[DataProvider('invalidContent')]
-    public function itKeepsThePreviousBuildWhenContentIsInvalid(array $files): void
+    public function itKeepsThePreviousBuildWhenContentIsInvalid(array $files, string $expectedMessage): void
     {
-        mkdir($this->projectDir.'/build', 0777, true);
-        file_put_contents($this->projectDir.'/build/previous.html', 'previous build');
+        $this->writePreviousBuild();
 
         foreach ($files as $path => $contents) {
             $absolutePath = $this->projectDir.'/content/'.$path;
@@ -583,10 +578,149 @@ final class SiteBuilderTest extends TestCase
         try {
             $builder->build();
             self::fail('Expected the build to fail for invalid content.');
-        } catch (\RuntimeException) {
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString($expectedMessage, $exception->getMessage());
         }
 
         self::assertFileExists($this->projectDir.'/build/previous.html');
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, string>, string}>
+     */
+    public static function directoriesThatAreNotAPreviousBuild(): iterable
+    {
+        yield 'source code' => ['src', ['src/Kernel.php' => '<?php // kernel', 'src/Controller/HomeController.php' => '<?php // controller'], 'The build directory "src" is not empty and does not look like a previous Staccato build (it has no sitemap.xml or 404.html), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "src" yourself.'];
+        yield 'version control' => ['.git', ['.git/HEAD' => 'ref: refs/heads/main', '.git/objects/ab/cdef' => 'object'], 'The build directory ".git" is not empty and does not look like a previous Staccato build (it has no sitemap.xml or 404.html), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove ".git" yourself.'];
+        yield 'hand-written docs' => ['docs', ['docs/index.html' => '<h1>Docs</h1>', 'docs/guide/index.html' => '<h1>Guide</h1>'], 'The build directory "docs" is not empty and does not look like a previous Staccato build (it has no sitemap.xml or 404.html), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "docs" yourself.'];
+        yield 'only dot files' => ['build', ['build/.gitkeep' => ''], 'The build directory "build" is not empty and does not look like a previous Staccato build (it has no sitemap.xml or 404.html), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "build" yourself.'];
+        yield 'only a sitemap' => ['build', ['build/index.html' => 'previous', 'build/sitemap.xml' => '<urlset></urlset>'], 'The build directory "build" is not empty and does not look like a previous Staccato build (it has no 404.html), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "build" yourself.'];
+        yield 'only a not found page' => ['build', ['build/index.html' => 'previous', 'build/404.html' => '404'], 'The build directory "build" is not empty and does not look like a previous Staccato build (it has no sitemap.xml), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "build" yourself.'];
+        yield 'directories named like the generated files' => ['build', ['build/sitemap.xml/index.html' => 'page', 'build/404.html/index.html' => 'page'], 'The build directory "build" is not empty and does not look like a previous Staccato build (it has no sitemap.xml or 404.html), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "build" yourself.'];
+    }
+
+    /**
+     * @param array<string, string> $files project-relative path => contents
+     */
+    #[Test]
+    #[DataProvider('directoriesThatAreNotAPreviousBuild')]
+    public function itRefusesToCleanABuildDirectoryThatIsNotAPreviousBuild(string $buildDirectory, array $files, string $expectedMessage): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/about.md', '# About');
+
+        foreach ($files as $path => $contents) {
+            if (!is_dir(dirname($this->projectDir.'/'.$path))) {
+                mkdir(dirname($this->projectDir.'/'.$path), 0777, true);
+            }
+
+            file_put_contents($this->projectDir.'/'.$path, $contents);
+        }
+
+        $before = $this->directoryContents($buildDirectory);
+
+        try {
+            $this->createBuilder(buildDirectory: $buildDirectory)->build();
+            self::fail('Expected the build to fail.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame($expectedMessage, $exception->getMessage());
+        }
+
+        self::assertSame($before, $this->directoryContents($buildDirectory));
+    }
+
+    #[Test]
+    public function itRefusesToCleanABuildDirectoryThatIsAFile(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/about.md', '# About');
+        file_put_contents($this->projectDir.'/build', 'a file');
+
+        try {
+            $this->createBuilder()->build();
+            self::fail('Expected the build to fail.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('The build directory "build" exists but is not a directory, so a clean build would delete it. Set "staccato.build_dir" to a new directory, or remove "build" yourself.', $exception->getMessage());
+        }
+
+        self::assertSame('a file', file_get_contents($this->projectDir.'/build'));
+    }
+
+    #[Test]
+    public function itRefusesToCleanTheVarDirectoryWhenBuildingFromFixtures(): void
+    {
+        mkdir($this->projectDir.'/var/cache/dev', 0777, true);
+        file_put_contents($this->projectDir.'/var/cache/dev/container.php', '<?php // container');
+
+        try {
+            $this->createBuilder(buildDirectory: 'var')->build(useFixtures: true);
+            self::fail('Expected the build to fail.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('The build directory "var" is not empty and does not look like a previous Staccato build (it has no sitemap.xml or 404.html), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "var" yourself.', $exception->getMessage());
+        }
+
+        self::assertSame('<?php // container', file_get_contents($this->projectDir.'/var/cache/dev/container.php'));
+        self::assertFileExists($this->projectDir.'/var/fixtures/content/articles/article-01.md');
+        self::assertFileDoesNotExist($this->projectDir.'/var/index.html');
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function missingOrEmptyBuildDirectory(): iterable
+    {
+        yield 'missing' => [false];
+        yield 'empty' => [true];
+    }
+
+    #[Test]
+    #[DataProvider('missingOrEmptyBuildDirectory')]
+    public function itCleansAMissingOrEmptyBuildDirectory(bool $createBuildDirectory): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/about.md', '# About');
+
+        if ($createBuildDirectory) {
+            mkdir($this->projectDir.'/build', 0777, true);
+        }
+
+        $result = $this->createBuilder()->build();
+
+        self::assertSame(1, $result->generatedPages);
+        self::assertFileExists($this->projectDir.'/build/about/index.html');
+    }
+
+    #[Test]
+    public function itCleansAPreviousBuild(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/about.md', '# About');
+        file_put_contents($this->projectDir.'/content/old.md', '# Old');
+        $this->createBuilder()->build();
+        file_put_contents($this->projectDir.'/build/search.json', '[]');
+        unlink($this->projectDir.'/content/old.md');
+
+        $this->createBuilder()->build();
+
+        self::assertFileExists($this->projectDir.'/build/about/index.html');
+        self::assertDirectoryDoesNotExist($this->projectDir.'/build/old');
+        self::assertFileDoesNotExist($this->projectDir.'/build/search.json');
+    }
+
+    #[Test]
+    public function itBuildsWithoutCleaningIntoADirectoryThatIsNotAPreviousBuild(): void
+    {
+        mkdir($this->projectDir.'/content', 0777, true);
+        file_put_contents($this->projectDir.'/content/about.md', '# About');
+        mkdir($this->projectDir.'/docs', 0777, true);
+        file_put_contents($this->projectDir.'/docs/guide.html', '<h1>Guide</h1>');
+
+        $this->createBuilder(buildDirectory: 'docs')->build(clean: false);
+
+        self::assertSame('<h1>Guide</h1>', file_get_contents($this->projectDir.'/docs/guide.html'));
+        self::assertFileExists($this->projectDir.'/docs/about/index.html');
+        self::assertFileExists($this->projectDir.'/docs/sitemap.xml');
+        self::assertFileExists($this->projectDir.'/docs/404.html');
     }
 
     #[Test]
@@ -745,16 +879,27 @@ final class SiteBuilderTest extends TestCase
     }
 
     /**
-     * @return array<string, string> path relative to the build directory => file contents
+     * Seeds the build directory with what an earlier build leaves there, so a clean build may remove it.
      */
-    private function buildDirectoryContents(): array
+    private function writePreviousBuild(): void
     {
-        $buildDirectory = $this->projectDir.'/build';
+        mkdir($this->projectDir.'/build', 0777, true);
+        file_put_contents($this->projectDir.'/build/previous.html', 'previous build');
+        file_put_contents($this->projectDir.'/build/sitemap.xml', '<urlset></urlset>');
+        file_put_contents($this->projectDir.'/build/404.html', '<html><body>404</body></html>');
+    }
+
+    /**
+     * @return array<string, string> path relative to the directory => file contents
+     */
+    private function directoryContents(string $directory): array
+    {
+        $directoryPath = $this->projectDir.'/'.$directory;
         $contents = [];
 
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($buildDirectory, \FilesystemIterator::SKIP_DOTS)) as $file) {
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directoryPath, \FilesystemIterator::SKIP_DOTS)) as $file) {
             \assert($file instanceof \SplFileInfo);
-            $contents[substr($file->getPathname(), strlen($buildDirectory) + 1)] = (string) file_get_contents($file->getPathname());
+            $contents[substr($file->getPathname(), strlen($directoryPath) + 1)] = (string) file_get_contents($file->getPathname());
         }
 
         ksort($contents);

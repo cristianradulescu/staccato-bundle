@@ -81,6 +81,7 @@ final readonly class SiteBuilder implements SiteBuilderInterface
         $this->assertNoStaticFileConflicts($staticFiles, [...array_keys($detailOutputPaths), ...$homeOutputPaths, ...array_keys($aliasOutputPaths)], $buildDirectory);
 
         if ($clean) {
+            $this->assertBuildDirectoryCanBeCleaned($buildDirectoryPath, $buildDirectory);
             $this->filesystem->remove($buildDirectoryPath);
         }
 
@@ -422,6 +423,33 @@ final readonly class SiteBuilder implements SiteBuilderInterface
                     throw new \RuntimeException(sprintf('Static file "%s" conflicts with the generated "%s" in the build directory.', $staticFile, $reservedPath));
                 }
             }
+        }
+    }
+
+    /**
+     * A clean build removes the whole build directory, so it only does so when that directory is missing, empty or a
+     * previous build: a build_dir pointing at src/, vendor/, var/ or a hand-written docs/ must not be deleted. Every
+     * build writes sitemap.xml and 404.html at its root, so their presence marks one; checking the content instead of
+     * a list of known directory names also covers directories no list would name.
+     */
+    private function assertBuildDirectoryCanBeCleaned(string $buildDirectoryPath, string $buildDirectory): void
+    {
+        if (!file_exists($buildDirectoryPath) && !is_link($buildDirectoryPath)) {
+            return;
+        }
+
+        if (!is_dir($buildDirectoryPath)) {
+            throw new \RuntimeException(sprintf('The build directory "%s" exists but is not a directory, so a clean build would delete it. Set "staccato.build_dir" to a new directory, or remove "%s" yourself.', $buildDirectory, $buildDirectory));
+        }
+
+        if (!(new \FilesystemIterator($buildDirectoryPath))->valid()) {
+            return;
+        }
+
+        $missingFiles = array_filter(['sitemap.xml', '404.html'], static fn (string $fileName): bool => !is_file($buildDirectoryPath.'/'.$fileName));
+
+        if ([] !== $missingFiles) {
+            throw new \RuntimeException(sprintf('The build directory "%s" is not empty and does not look like a previous Staccato build (it has no %s), so a clean build would delete it. Set "staccato.build_dir" to a new directory, or empty or remove "%s" yourself.', $buildDirectory, implode(' or ', $missingFiles), $buildDirectory));
         }
     }
 
