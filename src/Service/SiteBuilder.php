@@ -41,8 +41,9 @@ final readonly class SiteBuilder implements SiteBuilderInterface
     ): SiteBuildResult {
         $startedAt = microtime(true);
         $siteConfig = $this->siteConfig;
-        // SiteConfig only holds normalized directories relative to the project directory (see
-        // SiteConfig::normalizeDirectory()), so they are joined to it as they are.
+        // SiteConfig only holds normalized directories relative to the project directory, with a build directory
+        // apart from the others (see SiteConfig::normalizeDirectory() and overlappingDirectory()), so they are joined
+        // to it as they are.
         $buildDirectory = $siteConfig->buildDirectory;
         $buildDirectoryPath = $this->projectDir.'/'.$buildDirectory;
         $assetsDirectoryPath = $this->projectDir.'/'.$siteConfig->assetsDirectory;

@@ -153,6 +153,9 @@ final class StaccatoBundleTest extends TestCase
         yield 'build contains assets' => [['build_dir' => 'site', 'assets_dir' => 'site/assets'], 'must not overlap with "staccato.assets_dir"'];
         yield 'build equals static' => [['build_dir' => 'static'], 'must not overlap with "staccato.static_dir"'];
         yield 'static inside build' => [['static_dir' => 'build/root'], 'must not overlap with "staccato.static_dir"'];
+        yield 'build differs from content only by case' => [['build_dir' => 'Content'], 'The "staccato.build_dir" value "Content" must not overlap with "staccato.content_dir" ("content"), because the build directory is removed on every clean build.'];
+        yield 'static inside build, differing only by case' => [['build_dir' => 'site', 'static_dir' => 'SITE/static'], 'The "staccato.build_dir" value "site" must not overlap with "staccato.static_dir" ("SITE/static"), because the build directory is removed on every clean build.'];
+        yield 'build inside assets, differing only by the case of a non-ASCII letter' => [['assets_dir' => 'Ressourcen/Öffentlich', 'build_dir' => 'ressourcen/öffentlich/build'], 'The "staccato.build_dir" value "ressourcen/öffentlich/build" must not overlap with "staccato.assets_dir" ("Ressourcen/Öffentlich")'];
     }
 
     /**

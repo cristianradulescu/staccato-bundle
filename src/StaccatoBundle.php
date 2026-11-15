@@ -67,13 +67,15 @@ final class StaccatoBundle extends AbstractBundle
             ->validate()
                 ->always(static function (array $config): array {
                     // build_dir is removed on every clean build, so it must never contain or sit inside the sources.
-                    foreach (['content_dir', 'assets_dir', 'static_dir'] as $sourceKey) {
-                        $build = $config['build_dir'].'/';
-                        $source = $config[$sourceKey].'/';
+                    $sourceDirectories = [
+                        'content_dir' => $config['content_dir'],
+                        'assets_dir' => $config['assets_dir'],
+                        'static_dir' => $config['static_dir'],
+                    ];
+                    $overlapping = SiteConfig::overlappingDirectory($config['build_dir'], $sourceDirectories);
 
-                        if (str_starts_with($build, $source) || str_starts_with($source, $build)) {
-                            throw new \InvalidArgumentException(sprintf('The "staccato.build_dir" value "%s" must not overlap with "staccato.%s" ("%s"), because the build directory is removed on every clean build.', $config['build_dir'], $sourceKey, $config[$sourceKey]));
-                        }
+                    if (null !== $overlapping) {
+                        throw new \InvalidArgumentException(sprintf('The "staccato.build_dir" value "%s" must not overlap with "staccato.%s" ("%s"), because the build directory is removed on every clean build.', $config['build_dir'], $overlapping, $sourceDirectories[$overlapping]));
                     }
 
                     return $config;
