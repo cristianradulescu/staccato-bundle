@@ -47,7 +47,7 @@ final readonly class SiteConfig
      * @internal
      *
      * @return ?string the directory with forward slashes and without leading or trailing slashes, or null when it is
-     *                 empty, absolute, or has an empty, "." or ".." segment
+     *                 empty, absolute, or has a segment that is empty or ends in "." or a space ("." and ".." included)
      */
     public static function normalizeDirectory(string $directory): ?string
     {
@@ -55,8 +55,16 @@ final readonly class SiteConfig
         $segments = explode('/', trim($normalized, '/'));
         $isAbsolute = str_starts_with($normalized, '/') || 1 === preg_match('#^[a-zA-Z]:/#', $normalized);
 
-        if ($isAbsolute || [] !== array_intersect($segments, ['', '.', '..'])) {
+        if ($isAbsolute) {
             return null;
+        }
+
+        foreach ($segments as $segment) {
+            // Windows drops trailing periods and spaces from path names, so "content." is the "content" directory
+            // there, which the build_dir overlap check would not see. Rejected on every platform; covers "." and "..".
+            if ('' === $segment || str_ends_with($segment, '.') || str_ends_with($segment, ' ')) {
+                return null;
+            }
         }
 
         return implode('/', $segments);
@@ -64,6 +72,6 @@ final readonly class SiteConfig
 
     private static function projectDirectory(string $name, string $directory): string
     {
-        return self::normalizeDirectory($directory) ?? throw new \InvalidArgumentException(sprintf('The SiteConfig "%s" value "%s" must be a path relative to the project directory, without "." or ".." segments.', $name, $directory));
+        return self::normalizeDirectory($directory) ?? throw new \InvalidArgumentException(sprintf('The SiteConfig "%s" value "%s" must be a path relative to the project directory, with no segment that is empty or ends in "." or a space (such as "..").', $name, $directory));
     }
 }

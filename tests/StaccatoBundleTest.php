@@ -112,6 +112,27 @@ final class StaccatoBundleTest extends TestCase
         $kernel->boot();
     }
 
+    #[Test]
+    public function itAcceptsDotsAndSpacesThatDoNotEndADirectorySegment(): void
+    {
+        $kernel = new TestKernel('site_config_dotted_directories', [
+            'content_dir' => 'site/v1.2',
+            'build_dir' => 'site/.output',
+            'assets_dir' => 'my assets',
+            'static_dir' => 'static ',
+        ]);
+        $kernel->boot();
+
+        $siteConfig = $this->getSiteConfig($kernel);
+
+        self::assertSame('site/v1.2', $siteConfig->contentDirectory);
+        self::assertSame('site/.output', $siteConfig->buildDirectory);
+        self::assertSame('my assets', $siteConfig->assetsDirectory);
+        self::assertSame('static', $siteConfig->staticDirectory);
+
+        $kernel->shutdown();
+    }
+
     /**
      * @return iterable<string, array{array<string, string>, string}>
      */
@@ -121,6 +142,12 @@ final class StaccatoBundleTest extends TestCase
         yield 'windows absolute path' => [['build_dir' => 'C:\\site\\build'], 'must be a path relative to the project directory'];
         yield 'parent segment' => [['assets_dir' => '../assets'], 'must be a path relative to the project directory'];
         yield 'current directory' => [['build_dir' => '.'], 'must be a path relative to the project directory'];
+        yield 'trailing dot' => [['build_dir' => 'content.'], 'The "staccato.build_dir" value "content." must be a path relative to the project directory, with no segment that is empty or ends in "." or a space (such as "..").'];
+        yield 'trailing dot in a nested segment' => [['build_dir' => 'build/out.'], 'The "staccato.build_dir" value "build/out." must be a path relative to the project directory'];
+        yield 'segment of only dots' => [['content_dir' => 'a/.../b'], 'The "staccato.content_dir" value "a/.../b" must be a path relative to the project directory'];
+        yield 'trailing space in a segment' => [['assets_dir' => 'assets /css'], 'The "staccato.assets_dir" value "assets /css" must be a path relative to the project directory'];
+        yield 'parent segment with a trailing space' => [['static_dir' => 'static/.. /root'], 'The "staccato.static_dir" value "static/.. /root" must be a path relative to the project directory'];
+        yield 'parent directory with a trailing space' => [['build_dir' => '.. '], 'The "staccato.build_dir" value ".. " must be a path relative to the project directory'];
         yield 'build equals content' => [['build_dir' => 'content'], 'must not overlap with "staccato.content_dir"'];
         yield 'build inside content' => [['build_dir' => 'content/build'], 'must not overlap with "staccato.content_dir"'];
         yield 'build contains assets' => [['build_dir' => 'site', 'assets_dir' => 'site/assets'], 'must not overlap with "staccato.assets_dir"'];

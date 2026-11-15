@@ -29,6 +29,8 @@ final class OutputPathResolverTest extends TestCase
         yield 'html file' => ['/2020/01/old-post.html', '/2020/01/old-post.html', 'build/2020/01/old-post.html'];
         yield 'whitespace and backslashes' => [' \\old\\post\\ ', '/old/post/', 'build/old/post/index.html'];
         yield 'dots and tildes' => ['/~user/v1.2/', '/~user/v1.2/', 'build/~user/v1.2/index.html'];
+        yield 'dot inside a nested segment' => ['/v1.2/notes/', '/v1.2/notes/', 'build/v1.2/notes/index.html'];
+        yield 'dot at the start of a segment' => ['/.well-known/old', '/.well-known/old/', 'build/.well-known/old/index.html'];
     }
 
     #[Test]
@@ -54,6 +56,11 @@ final class OutputPathResolverTest extends TestCase
         yield 'empty segment' => ['/blog//post/', 'may only contain'];
         yield 'query string' => ['/post/?page=2', 'may only contain'];
         yield 'space' => ['/old post/', 'may only contain'];
+        yield 'trailing dot' => ['/a./', 'Alias "/a./" in "post.md" may only contain letters, digits, ".", "_", "~" and "-" between slashes, with no segment ending in ".".'];
+        yield 'trailing dot in a nested segment' => ['/old/post./', 'with no segment ending in "."'];
+        yield 'trailing dot without a trailing slash' => ['/old/post.', 'with no segment ending in "."'];
+        yield 'segment of only dots' => ['/.../', 'with no segment ending in "."'];
+        yield 'line break at the end of a segment' => ["/old\n/post/", 'may only contain'];
     }
 
     #[Test]

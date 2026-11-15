@@ -121,7 +121,7 @@ final class StaccatoBundle extends AbstractBundle
             ->validate()
                 ->always(static function (mixed $value) use ($name): string {
                     return SiteConfig::normalizeDirectory((string) $value)
-                        ?? throw new \InvalidArgumentException(sprintf('The "staccato.%s" value "%s" must be a path relative to the project directory, without "." or ".." segments.', $name, $value));
+                        ?? throw new \InvalidArgumentException(sprintf('The "staccato.%s" value "%s" must be a path relative to the project directory, with no segment that is empty or ends in "." or a space (such as "..").', $name, $value));
                 })
             ->end();
 

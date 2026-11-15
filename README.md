@@ -103,7 +103,7 @@ when@prod:
 
 A `staccato:` key in `config/packages/prod/staccato.yaml` works the same way. `base_url: '%env(SITE_URL)%'` is not supported: `base_url` is validated when the container is compiled, while `%env()%` values are only read at runtime, so Symfony rejects it with `The path "staccato.base_url" cannot contain an environment variable when empty values are not allowed by definition and are validated.`
 
-`content_dir`, `build_dir`, `assets_dir` and `static_dir` are relative to your project root and may not contain `.` or `..` segments. Because the build directory is removed on every clean build, `build_dir` may not equal, contain, or sit inside `content_dir`, `assets_dir` or `static_dir`. Whatever `assets_dir` is called, its files are published under `build/assets/`, so links like `/assets/logo.png` keep working. Files in `static_dir` are published at the root of the build directory instead — see "Output layout".
+`content_dir`, `build_dir`, `assets_dir` and `static_dir` are relative to your project root, and none of their segments may be empty or end in `.` or a space. That rules out `.` and `..`, and names such as `content.`, which Windows reads as `content` because it drops trailing periods and spaces; dots and spaces elsewhere are fine (`site/.output`, `v1.2`). Because the build directory is removed on every clean build, `build_dir` may not equal, contain, or sit inside `content_dir`, `assets_dir` or `static_dir`. Whatever `assets_dir` is called, its files are published under `build/assets/`, so links like `/assets/logo.png` keep working. Files in `static_dir` are published at the root of the build directory instead — see "Output layout".
 
 The rest of this README uses the default names (`content/`, `build/`, `assets/`).
 
@@ -274,7 +274,7 @@ aliases: ['/2022-08-20-Github-pages-with-Jigsaw/', /blog/github-pages.html]
 
 Each alias gets a small redirect page (`redirect.html.twig`: a meta refresh to the page, a canonical link to it and `noindex`, so search engines index only the new URL). Aliases are not in the sitemap, and aliases of drafts left out of a build are not written either.
 
-- An alias is a URL path starting with `/`. Unlike slugs it keeps its case and may contain dots, so old mixed-case URLs survive a migration.
+- An alias is a URL path starting with `/`. Unlike slugs it keeps its case and may contain dots, so old mixed-case URLs survive a migration. Between the slashes it may use letters, digits, `.`, `_`, `~` and `-`, but no segment may end in `.`: Windows drops a trailing dot, so `/a./` would be written over the page `/a/` there.
 - A path ending in `.html` is written as that file (`/blog/github-pages.html` -> `build/blog/github-pages.html`); anything else is directory-style like page URLs (`/Old-Post` -> `build/Old-Post/index.html`).
 - An alias may not point at `/`, at another page, a homepage listing page, a generated file, anything under `/assets/`, another alias or a static file. Nor may it need one of these files as a directory, or be a file one of them needs as a directory: `/rss.xml` would be written to `build/rss.xml/index.html`, inside the feed, and `/old.html` and `/old.html/page/` cannot both be aliases. Conflicts fail the build before the build directory is cleaned.
 - On a case-insensitive filesystem (macOS and Windows defaults), an alias that differs from its page's URL only by case is the same file as the page; the build fails rather than replace the page with a redirect to itself. Build on Linux or in CI to keep such aliases.

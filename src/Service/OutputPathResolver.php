@@ -58,6 +58,7 @@ final class OutputPathResolver
     /**
      * Normalizes an alias (an old URL of a page) to a URL path. Unlike slugs, aliases keep their case and may
      * contain dots, so URLs from other generators (/Old-Post/, /2020/01/post.html) can be kept as they were.
+     * A segment may not end in a dot: Windows drops it, so /a./ would be written over the page /a/ there.
      */
     public function normalizeAliasUrlPath(string $alias, string $sourcePath): string
     {
@@ -74,8 +75,9 @@ final class OutputPathResolver
         }
 
         foreach (explode('/', $trimmed) as $segment) {
-            if ('.' === $segment || '..' === $segment || 1 !== preg_match('/^[A-Za-z0-9._~-]+$/', $segment)) {
-                throw new \RuntimeException(sprintf('Alias "%s" in "%s" may only contain letters, digits, ".", "_", "~" and "-" between slashes.', $alias, $sourcePath));
+            // The last character excludes ".", which also rules out "." and "..".
+            if (1 !== preg_match('/^[A-Za-z0-9._~-]*[A-Za-z0-9_~-]\z/', $segment)) {
+                throw new \RuntimeException(sprintf('Alias "%s" in "%s" may only contain letters, digits, ".", "_", "~" and "-" between slashes, with no segment ending in ".".', $alias, $sourcePath));
             }
         }
 

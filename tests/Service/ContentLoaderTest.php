@@ -280,6 +280,10 @@ final class ContentLoaderTest extends TestCase
         yield 'relative path' => ['aliases: [old/]', 'Alias "old/" in "post.md" must be a URL path starting with "/".'];
         yield 'unquoted date' => ['aliases: 2021-01-01', 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
         yield 'unquoted date in list' => ['aliases: [/old/, 2021-01-01]', 'Front matter key "aliases" in "post.md" must be a list of URL paths.'];
+        yield 'trailing dot' => ['aliases: [/a./]', 'Alias "/a./" in "post.md" may only contain letters, digits, ".", "_", "~" and "-" between slashes, with no segment ending in ".".'];
+        yield 'segment of only dots' => ['aliases: [/.../]', 'Alias "/.../" in "post.md" may only contain letters, digits, ".", "_", "~" and "-" between slashes, with no segment ending in ".".'];
+        yield 'trailing dot in a nested segment' => ['aliases: [/old/post./]', 'Alias "/old/post./" in "post.md" may only contain letters, digits, ".", "_", "~" and "-" between slashes, with no segment ending in ".".'];
+        yield 'line break in a double-quoted alias' => ['aliases: ["/old\\n/post/"]', "Alias \"/old\n/post/\" in \"post.md\" may only contain letters, digits, \".\", \"_\", \"~\" and \"-\" between slashes, with no segment ending in \".\"."];
     }
 
     #[Test]
