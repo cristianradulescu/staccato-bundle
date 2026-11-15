@@ -186,19 +186,23 @@ jobs:
     env:
       APP_ENV: prod
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           tools: composer
       - run: composer install --no-dev --no-interaction --prefer-dist
       - run: php bin/console site:build --env=prod
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: build
+          # Without it, dotfiles in build/ (such as .well-known/ from static/) are left out.
+          include-hidden-files: true
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 EOF
 
 if [[ "$build" -eq 1 ]]; then
