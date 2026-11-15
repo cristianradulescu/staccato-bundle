@@ -25,16 +25,16 @@ final class StaccatoBundle extends AbstractBundle
                     ->cannotBeEmpty()
                     ->defaultValue('http://localhost')
                     ->validate()
-                        ->ifTrue(static fn (string $value): bool => false === filter_var($value, FILTER_VALIDATE_URL))
-                        ->thenInvalid('The "staccato.base_url" value "%s" must be a valid URL.')
+                        ->ifTrue(static fn (mixed $value): bool => false === filter_var((string) $value, FILTER_VALIDATE_URL))
+                        ->then(static fn (mixed $value): never => throw new \InvalidArgumentException(sprintf('The "staccato.base_url" value %s must be a valid URL.', self::describeValue($value))))
                     ->end()
                 ->end()
                 ->scalarNode('language')
                     ->cannotBeEmpty()
                     ->defaultValue('en')
                     ->validate()
-                        ->ifTrue(static fn (string $value): bool => 1 !== preg_match('/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/', $value))
-                        ->thenInvalid('The "staccato.language" value "%s" must be a language tag such as "en" or "pt-BR".')
+                        ->ifTrue(static fn (mixed $value): bool => 1 !== preg_match('/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/', (string) $value))
+                        ->then(static fn (mixed $value): never => throw new \InvalidArgumentException(sprintf('The "staccato.language" value %s must be a language tag such as "en" or "pt-BR".', self::describeValue($value))))
                     ->end()
                 ->end()
                 ->scalarNode('description')
@@ -108,6 +108,15 @@ final class StaccatoBundle extends AbstractBundle
                 $config['language'],
                 $config['static_dir'],
             ]);
+    }
+
+    /**
+     * A rejected value for an error message, typed as in YAML ("not-a-url" quoted, 42 and true not). thenInvalid()
+     * would JSON-encode it with escaped slashes, so a base_url without a scheme would read "example.com\/blog".
+     */
+    private static function describeValue(mixed $value): string
+    {
+        return (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
     /**

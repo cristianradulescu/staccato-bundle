@@ -8,6 +8,8 @@
 # Run with --help for details.
 
 set -euo pipefail
+# With an exported CDPATH, `cd some-dir` could enter a same-named directory elsewhere.
+unset CDPATH
 
 remote='origin'
 branch='main'

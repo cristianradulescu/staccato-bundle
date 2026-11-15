@@ -94,20 +94,56 @@ final class StaccatoBundleTest extends TestCase
             'language' => 'english please',
         ]);
 
-        $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('must be a language tag');
-
-        $kernel->boot();
+        try {
+            $kernel->boot();
+            self::fail('Expected the language to be rejected.');
+        } catch (InvalidConfigurationException $exception) {
+            self::assertStringContainsString('The "staccato.language" value "english please" must be a language tag such as "en" or "pt-BR".', $exception->getMessage());
+            self::assertStringNotContainsString('""', $exception->getMessage());
+        }
     }
 
     #[Test]
     public function itRejectsAnInvalidBaseUrl(): void
     {
         $kernel = new TestKernel('site_config_invalid_url', [
-            'base_url' => 'not-a-url',
+            'base_url' => 'example.com/blog',
         ]);
 
+        try {
+            $kernel->boot();
+            self::fail('Expected the base URL to be rejected.');
+        } catch (InvalidConfigurationException $exception) {
+            self::assertStringContainsString('The "staccato.base_url" value "example.com/blog" must be a valid URL.', $exception->getMessage());
+            self::assertStringNotContainsString('""', $exception->getMessage());
+        }
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, string}>
+     */
+    public static function nonStringScalars(): iterable
+    {
+        yield 'integer base_url' => [['base_url' => 42], 'The "staccato.base_url" value 42 must be a valid URL.'];
+        yield 'boolean base_url' => [['base_url' => true], 'The "staccato.base_url" value true must be a valid URL.'];
+        yield 'integer language' => [['language' => 123], 'The "staccato.language" value 123 must be a language tag such as "en" or "pt-BR".'];
+        yield 'float language' => [['language' => 1.5], 'The "staccato.language" value 1.5 must be a language tag such as "en" or "pt-BR".'];
+    }
+
+    /**
+     * A YAML value such as `base_url: 42` reaches the validation closures as an int, so they must not rely on a string
+     * parameter type.
+     *
+     * @param array<string, mixed> $config
+     */
+    #[Test]
+    #[DataProvider('nonStringScalars')]
+    public function itRejectsNonStringScalarsWithTheValidationMessage(array $config, string $expectedMessage): void
+    {
+        $kernel = new TestKernel('site_config_non_string_scalar_'.md5(serialize($config)), $config);
+
         $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage($expectedMessage);
 
         $kernel->boot();
     }

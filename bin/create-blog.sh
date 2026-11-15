@@ -7,6 +7,8 @@
 # Run with --help for the list of options.
 
 set -euo pipefail
+# With an exported CDPATH, `cd some-dir` could enter a same-named directory elsewhere.
+unset CDPATH
 
 title='My Blog'
 base_url='http://localhost'

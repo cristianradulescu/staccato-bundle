@@ -106,10 +106,10 @@ final readonly class SiteBuilder implements SiteBuilderInterface
             $this->pageRenderer->renderNotFound(),
         );
 
-        $sitemapUrls = array_values(array_unique(array_merge(
-            $homeUrls,
-            array_map(static fn (Page $page): string => $page->urlPath, $detailPages),
-        )));
+        $sitemapUrls = [
+            ...$homeUrls,
+            ...array_map(static fn (Page $page): string => $page->urlPath, $detailPages),
+        ];
 
         $sitemapXml = $this->pageRenderer->renderSitemap($sitemapUrls);
         $this->filesystem->dumpFile($buildDirectoryPath.'/sitemap.xml', $sitemapXml);
