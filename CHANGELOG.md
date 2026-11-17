@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-17
+
 ### Added
 - `site:build --drafts` / `--no-drafts`: include or leave out draft pages in any environment. Without either option nothing changes: drafts are left out in `prod` and included in every other environment. `--no-drafts` builds without drafts in `dev`, where template and configuration changes are picked up on every build; in `prod`, Symfony runs with debug off and keeps serving its cached container and templates until `cache:clear --env=prod`.
 
@@ -71,6 +73,7 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 - `bin/create-blog.sh`, a helper script that creates a new Symfony application with Staccato, sample content and a first build.
 - Quality tooling: PHP CS Fixer, PHPStan (level 7), PHPUnit, and a `composer qa` quality gate.
 
-[Unreleased]: https://github.com/cristianradulescu/staccato-bundle/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/cristianradulescu/staccato-bundle/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/cristianradulescu/staccato-bundle/releases/tag/v0.3.0
 [0.2.0]: https://github.com/cristianradulescu/staccato-bundle/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cristianradulescu/staccato-bundle/releases/tag/v0.1.0
